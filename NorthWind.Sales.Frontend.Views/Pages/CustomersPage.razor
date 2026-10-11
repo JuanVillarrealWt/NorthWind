@@ -74,12 +74,12 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var c in Customers)
+                            @foreach (var c in PagedCustomers)
                             {
                                 <tr>
                                     <td><span class="badge bg-secondary font-monospace fs-6">@c.Id</span></td>
                                     <td class="fw-bold">@c.Name</td>
-                                    <td class="text-end font-monospace text-dark fs-6">@c.CurrentBalance.ToString("C")</td>
+                                    <td class="text-end font-monospace text-dark fs-6">@CurrencyFormatter.Format(c.CurrentBalance)</td>
                                     <td class="text-center">
                                         <button class="btn btn-outline-warning btn-sm me-2 fw-bold" @onclick="() => OpenEditModal(c)">
                                             <i class="bi bi-pencil-square me-1"></i> Edit
@@ -95,6 +95,16 @@
                 </div>
             </div>
         </div>
+        @if (Customers.Count() > PageSize)
+        {
+            <div class="d-flex justify-content-between align-items-center p-3">
+                <small class="text-muted">Página @CurrentPage de @TotalPages · @Customers.Count() clientes</small>
+                <div class="btn-group">
+                    <button class="btn btn-outline-primary" disabled="@(CurrentPage == 1)" @onclick="() => ChangePage(-1)">Anterior</button>
+                    <button class="btn btn-outline-primary" disabled="@(CurrentPage >= TotalPages)" @onclick="() => ChangePage(1)">Siguiente</button>
+                </div>
+            </div>
+        }
     }
 </div>
 
@@ -132,6 +142,23 @@
     </div>
 }
 
+@if (CustomerToDelete != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.55);" role="dialog" aria-modal="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content shadow border-0">
+                <div class="modal-body text-center p-4">
+                    <i class="bi bi-exclamation-triangle text-warning display-5"></i>
+                    <h5 class="fw-bold mt-3">¿Eliminar cliente?</h5>
+                    <p class="text-muted mb-4">¿Seguro que deseas eliminar a <strong>@CustomerToDelete.Name</strong>? Esta acción no se puede deshacer.</p>
+                    <button class="btn btn-light me-2" @onclick="CancelDelete">Cancelar</button>
+                    <button class="btn btn-danger" @onclick="ConfirmDeleteCustomer">Sí, eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private string FilterText = string.Empty;
     private IEnumerable<CustomerItemViewModel> Customers = [];
@@ -140,6 +167,13 @@
     private bool IsEditing = false;
     private CustomerItemViewModel CurrentCustomer = new();
     private string StatusMessage = string.Empty;
+    private const int PageSize = 10;
+    private int CurrentPage = 1;
+    private CustomerItemViewModel? CustomerToDelete;
+    private IEnumerable<CustomerItemViewModel> PagedCustomers => Customers.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(Customers.Count() / (double)PageSize));
+
+    private void ChangePage(int delta) => CurrentPage = Math.Clamp(CurrentPage + delta, 1, TotalPages);
 
     protected override async Task OnInitializedAsync()
     {
@@ -160,6 +194,7 @@
         try
         {
             Customers = await SearchGateway.SearchCustomers(FilterText);
+            CurrentPage = 1;
         }
         finally
         {
@@ -215,8 +250,15 @@
         }
     }
 
-    private async Task DeleteCustomer(string customerId)
+    private void DeleteCustomer(string customerId) => CustomerToDelete = Customers.FirstOrDefault(c => c.Id == customerId);
+
+    private void CancelDelete() => CustomerToDelete = null;
+
+    private async Task ConfirmDeleteCustomer()
     {
+        if (CustomerToDelete == null) return;
+        var customerId = CustomerToDelete.Id;
+        CustomerToDelete = null;
         try
         {
             await CrudGateway.DeleteCustomer(customerId);

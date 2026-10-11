@@ -69,18 +69,18 @@
                             <tr>
                                 <th>Product ID</th>
                                 <th>Product Name</th>
-                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">Unit Price ($)</th>
                                 <th class="text-center">Units In Stock</th>
                                 <th class="text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var p in Products)
+                            @foreach (var p in PagedProducts)
                             {
                                 <tr>
                                     <td><span class="badge bg-secondary font-monospace fs-6">#@p.Id</span></td>
                                     <td class="fw-bold">@p.Name</td>
-                                    <td class="text-end font-monospace text-success fw-bold fs-6">@p.UnitPrice.ToString("C")</td>
+                                    <td class="text-end font-monospace text-success fw-bold fs-6">@CurrencyFormatter.Format(p.UnitPrice)</td>
                                     <td class="text-center font-monospace">
                                         @if (p.UnitsInStock > 0)
                                         {
@@ -106,6 +106,16 @@
                 </div>
             </div>
         </div>
+        @if (Products.Count() > PageSize)
+        {
+            <div class="d-flex justify-content-between align-items-center p-3">
+                <small class="text-muted">Página @CurrentPage de @TotalPages · @Products.Count() productos</small>
+                <div class="btn-group">
+                    <button class="btn btn-outline-success" disabled="@(CurrentPage == 1)" @onclick="() => ChangePage(-1)">Anterior</button>
+                    <button class="btn btn-outline-success" disabled="@(CurrentPage >= TotalPages)" @onclick="() => ChangePage(1)">Siguiente</button>
+                </div>
+            </div>
+        }
     }
 </div>
 
@@ -143,6 +153,23 @@
     </div>
 }
 
+@if (ProductToDelete != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.55);" role="dialog" aria-modal="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content shadow border-0">
+                <div class="modal-body text-center p-4">
+                    <i class="bi bi-exclamation-triangle text-warning display-5"></i>
+                    <h5 class="fw-bold mt-3">¿Eliminar producto?</h5>
+                    <p class="text-muted mb-4">¿Seguro que deseas eliminar <strong>@ProductToDelete.Name</strong>? Esta acción no se puede deshacer.</p>
+                    <button class="btn btn-light me-2" @onclick="CancelDelete">Cancelar</button>
+                    <button class="btn btn-danger" @onclick="ConfirmDeleteProduct">Sí, eliminar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private string FilterText = string.Empty;
     private IEnumerable<ProductItemViewModel> Products = [];
@@ -151,6 +178,13 @@
     private bool IsEditing = false;
     private ProductItemViewModel CurrentProduct = new();
     private string StatusMessage = string.Empty;
+    private const int PageSize = 10;
+    private int CurrentPage = 1;
+    private ProductItemViewModel? ProductToDelete;
+    private IEnumerable<ProductItemViewModel> PagedProducts => Products.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(Products.Count() / (double)PageSize));
+
+    private void ChangePage(int delta) => CurrentPage = Math.Clamp(CurrentPage + delta, 1, TotalPages);
 
     protected override async Task OnInitializedAsync()
     {
@@ -171,6 +205,7 @@
         try
         {
             Products = await SearchGateway.SearchProducts(FilterText);
+            CurrentPage = 1;
         }
         finally
         {
@@ -226,8 +261,15 @@
         }
     }
 
-    private async Task DeleteProduct(int productId)
+    private void DeleteProduct(int productId) => ProductToDelete = Products.FirstOrDefault(p => p.Id == productId);
+
+    private void CancelDelete() => ProductToDelete = null;
+
+    private async Task ConfirmDeleteProduct()
     {
+        if (ProductToDelete == null) return;
+        var productId = ProductToDelete.Id;
+        ProductToDelete = null;
         try
         {
             await CrudGateway.DeleteProduct(productId);

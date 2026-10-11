@@ -70,12 +70,12 @@
                                 <th>Cliente</th>
                                 <th>Fecha</th>
                                 <th>Ciudad / País</th>
-                                <th class="text-end">Total</th>
+                                <th class="text-end">Total ($)</th>
                                 <th class="text-center">Acción</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var order in Orders)
+                            @foreach (var order in PagedOrders)
                             {
                                 <tr>
                                     <td><span class="badge bg-primary font-monospace fs-6">#@order.Id</span></td>
@@ -85,7 +85,7 @@
                                     </td>
                                     <td>@order.OrderDate.ToString("g")</td>
                                     <td>@order.ShipCity, @order.ShipCountry</td>
-                                    <td class="text-end fw-bold text-success font-monospace fs-6">@order.Total.ToString("C")</td>
+                                    <td class="text-end fw-bold text-success font-monospace fs-6">@CurrencyFormatter.Format(order.Total)</td>
                                     <td class="text-center">
                                         <button class="btn btn-outline-primary btn-sm fw-bold" @onclick="() => ViewInvoiceDetails(order.Id)">
                                             <i class="bi bi-eye me-1"></i> Ver Factura
@@ -98,6 +98,16 @@
                 </div>
             </div>
         </div>
+        @if (Orders.Count() > PageSize)
+        {
+            <div class="d-flex justify-content-between align-items-center p-3">
+                <small class="text-muted">Página @CurrentPage de @TotalPages · @Orders.Count() facturas</small>
+                <div class="btn-group">
+                    <button class="btn btn-outline-primary" disabled="@(CurrentPage == 1)" @onclick="() => ChangePage(-1)">Anterior</button>
+                    <button class="btn btn-outline-primary" disabled="@(CurrentPage >= TotalPages)" @onclick="() => ChangePage(1)">Siguiente</button>
+                </div>
+            </div>
+        }
     }
 </div>
 
@@ -140,7 +150,7 @@
                                     <th>Producto</th>
                                     <th class="text-end">Precio Unit.</th>
                                     <th class="text-center">Cantidad</th>
-                                    <th class="text-end">Subtotal</th>
+                                    <th class="text-end">Subtotal ($)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -149,9 +159,9 @@
                                     <tr>
                                         <td><span class="badge bg-outline-secondary font-monospace">@item.ProductId</span></td>
                                         <td class="fw-bold">@item.ProductName</td>
-                                        <td class="text-end">@item.UnitPrice.ToString("C")</td>
+                                        <td class="text-end">@CurrencyFormatter.Format(item.UnitPrice)</td>
                                         <td class="text-center font-monospace">@item.Quantity</td>
-                                        <td class="text-end fw-bold font-monospace">@item.Subtotal.ToString("C")</td>
+                                        <td class="text-end fw-bold font-monospace">@CurrencyFormatter.Format(item.Subtotal)</td>
                                     </tr>
                                 }
                             </tbody>
@@ -163,16 +173,16 @@
                                 }
                                 <tr>
                                     <td colspan="4" class="text-end fw-bold text-muted">Subtotal Neto:</td>
-                                    <td class="text-end fw-bold font-monospace">@subtotalNeto.ToString("C")</td>
+                                    <td class="text-end fw-bold font-monospace">@CurrencyFormatter.Format(subtotalNeto)</td>
                                 </tr>
                                 <tr>
                                     <td colspan="4" class="text-end text-muted">IVA (15%):</td>
-                                    <td class="text-end font-monospace text-muted">@iva.ToString("C")</td>
+                                    <td class="text-end font-monospace text-muted">@CurrencyFormatter.Format(iva)</td>
                                 </tr>
                                 <tr class="table-dark">
                                     <td colspan="4" class="text-end fw-bold fs-5">TOTAL CON IVA:</td>
                                     <td class="text-end fw-bold fs-5 text-success font-monospace">
-                                        @totalConIva.ToString("C")
+                                        @CurrencyFormatter.Format(totalConIva)
                                     </td>
                                 </tr>
                             </tfoot>
@@ -199,6 +209,12 @@
     private IEnumerable<OrderHeaderDto> Orders = [];
     private OrderInvoiceDto? SelectedInvoice = null;
     private bool IsLoading = false;
+    private const int PageSize = 10;
+    private int CurrentPage = 1;
+    private IEnumerable<OrderHeaderDto> PagedOrders => Orders.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(Orders.Count() / (double)PageSize));
+
+    private void ChangePage(int delta) => CurrentPage = Math.Clamp(CurrentPage + delta, 1, TotalPages);
 
     protected override async Task OnInitializedAsync()
     {
@@ -219,6 +235,7 @@
         try
         {
             Orders = await OrdersGateway.SearchOrders(FilterText);
+            CurrentPage = 1;
         }
         finally
         {
