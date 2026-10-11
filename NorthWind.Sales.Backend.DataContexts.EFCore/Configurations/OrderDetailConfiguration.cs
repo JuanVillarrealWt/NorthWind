@@ -13,6 +13,10 @@ internal class OrderDetailConfiguration :
         builder.Property(d => d.UnitPrice)
             .HasPrecision(8, 2);
 
-        builder.HasOne<Product>().WithMany().HasForeignKey(d => d.ProductId);
+        builder.Property(d => d.ProductName)
+            .IsRequired()
+            .HasMaxLength(40);
+
+        builder.HasIndex(d => d.ProductId);
     }
 }

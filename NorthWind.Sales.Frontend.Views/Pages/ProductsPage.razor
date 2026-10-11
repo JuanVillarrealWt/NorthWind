@@ -1,22 +1,23 @@
 @page "/products"
+@implements IDisposable
 @attribute [Authorize]
 @using NorthWind.Sales.Frontend.BusinessObjects.Interfaces
 @using NorthWind.Sales.Frontend.BusinessObjects.ViewModels
 @inject ISearchProductsGateway SearchGateway
 @inject IProductCrudGateway CrudGateway
 
-<PageTitle>Product Catalog Management - NorthWind</PageTitle>
+<PageTitle>Administración de productos - NorthWind</PageTitle>
 
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-success mb-1">
-                <i class="bi bi-box-seam me-2"></i> Product Catalog Management
+                <i class="bi bi-box-seam me-2"></i> Administración del catálogo de productos
             </h2>
-            <p class="text-muted mb-0">Create, update stock, edit pricing, or delete products directly in the system.</p>
+            <p class="text-muted mb-0">Crea, actualiza, modifica precios o elimina productos del sistema.</p>
         </div>
         <button class="btn btn-success btn-lg fw-bold shadow-sm" @onclick="OpenCreateModal">
-            <i class="bi bi-plus-circle-fill me-1"></i> Add New Product
+            <i class="bi bi-plus-circle-fill me-1"></i> Agregar producto
         </button>
     </div>
 
@@ -31,11 +32,14 @@
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body p-4">
             <div class="input-group">
-                <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control form-control-lg"
-                       placeholder="Filter product by ID or Name..."
-                       @bind="FilterText" @bind:event="oninput" @keyup="OnKeyUp" />
-                <button class="btn btn-outline-success fw-bold" @onclick="LoadProducts">Search</button>
+                <select class="form-select form-select-lg" style="max-width: 180px" @bind="FilterField" @bind:after="OnFilterFieldChanged" aria-label="Campo de búsqueda">
+                    <option value="Id">ID del producto</option>
+                    <option value="Name">Nombre</option>
+                </select>
+                <input type="text" class="form-control form-control-lg" inputmode="@(FilterField == "Id" ? "numeric" : null)"
+                       maxlength="@(FilterField == "Id" ? 10 : null)" placeholder="@(FilterField == "Id" ? "Ingresa el ID numérico" : "Ingresa el nombre")"
+                       value="@FilterText" @oninput="OnFilterInput" @onkeyup="OnKeyUp" />
+                <button class="btn btn-outline-success fw-bold" @onclick="SearchImmediately">Buscar</button>
             </div>
         </div>
     </div>
@@ -44,9 +48,9 @@
     {
         <div class="text-center py-5">
             <div class="spinner-border text-success" role="status">
-                <span class="visually-hidden">Loading products...</span>
+                <span class="visually-hidden">Cargando productos...</span>
             </div>
-            <p class="mt-2 text-muted">Loading product catalog...</p>
+            <p class="mt-2 text-muted">Cargando catálogo de productos...</p>
         </div>
     }
     else if (Products == null || !Products.Any())
@@ -54,8 +58,8 @@
         <div class="card shadow-sm border-0 text-center py-5">
             <div class="card-body">
                 <i class="bi bi-inbox text-muted display-4 mb-3 d-block"></i>
-                <h4 class="text-muted fw-bold">No products found</h4>
-                <p class="text-muted">Click "Add New Product" above to create a new item.</p>
+                <h4 class="text-muted fw-bold">No se encontraron productos</h4>
+                <p class="text-muted">Selecciona «Agregar producto» para registrar uno nuevo.</p>
             </div>
         </div>
     }
@@ -67,11 +71,11 @@
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th>Product ID</th>
-                                <th>Product Name</th>
-                                <th class="text-end">Unit Price ($)</th>
-                                <th class="text-center">Units In Stock</th>
-                                <th class="text-center">Actions</th>
+                                <th>ID del producto</th>
+                                <th>Nombre del producto</th>
+                                <th class="text-end">Precio unitario ($)</th>
+                                <th class="text-center">Unidades disponibles</th>
+                                <th class="text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -84,19 +88,19 @@
                                     <td class="text-center font-monospace">
                                         @if (p.UnitsInStock > 0)
                                         {
-                                            <span class="badge bg-success fs-6">@p.UnitsInStock available</span>
+                                            <span class="badge bg-success fs-6">@p.UnitsInStock disponibles</span>
                                         }
                                         else
                                         {
-                                            <span class="badge bg-danger fs-6">Out of stock (0)</span>
+                                            <span class="badge bg-danger fs-6">Agotado (0)</span>
                                         }
                                     </td>
                                     <td class="text-center">
                                         <button class="btn btn-outline-warning btn-sm me-2 fw-bold" @onclick="() => OpenEditModal(p)">
-                                            <i class="bi bi-pencil-square me-1"></i> Edit
+                                            <i class="bi bi-pencil-square me-1"></i> Editar
                                         </button>
                                         <button class="btn btn-outline-danger btn-sm fw-bold" @onclick="() => DeleteProduct(p.Id)">
-                                            <i class="bi bi-trash-fill me-1"></i> Delete
+                                            <i class="bi bi-trash-fill me-1"></i> Eliminar
                                         </button>
                                     </td>
                                 </tr>
@@ -106,10 +110,20 @@
                 </div>
             </div>
         </div>
-        @if (Products.Count() > PageSize)
+        @if (Products.Any())
         {
             <div class="d-flex justify-content-between align-items-center p-3">
                 <small class="text-muted">Página @CurrentPage de @TotalPages · @Products.Count() productos</small>
+                <div class="d-flex align-items-center gap-2">
+                    <label for="productPageSize" class="form-label mb-0 small">Elementos por página</label>
+                    <select id="productPageSize" class="form-select form-select-sm" style="width: auto" @bind="PageSize" @bind:after="OnPageSizeChanged" aria-label="Elementos por página">
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                        <option value="30">30</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
                 <div class="btn-group">
                     <button class="btn btn-outline-success" disabled="@(CurrentPage == 1)" @onclick="() => ChangePage(-1)">Anterior</button>
                     <button class="btn btn-outline-success" disabled="@(CurrentPage >= TotalPages)" @onclick="() => ChangePage(1)">Siguiente</button>
@@ -126,27 +140,27 @@
             <div class="modal-content shadow-lg border-0">
                 <div class="modal-header bg-success text-white">
                     <h5 class="modal-title fw-bold">
-                        <i class="bi bi-box-seam me-2"></i> @(IsEditing ? "Edit Product" : "Create Product")
+                        <i class="bi bi-box-seam me-2"></i> @(IsEditing ? "Editar producto" : "Crear producto")
                     </h5>
                     <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Product Name</label>
-                        <input type="text" class="form-control" @bind="CurrentProduct.Name" placeholder="e.g. Chai Tea" />
+                        <label class="form-label fw-bold">Nombre del producto</label>
+                        <input type="text" class="form-control" @bind="CurrentProduct.Name" placeholder="Ej.: té chai" />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Unit Price ($)</label>
+                        <label class="form-label fw-bold">Precio unitario ($)</label>
                         <input type="number" step="0.01" class="form-control" @bind="CurrentProduct.UnitPrice" />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Units In Stock</label>
+                        <label class="form-label fw-bold">Unidades disponibles</label>
                         <input type="number" class="form-control" @bind="CurrentProduct.UnitsInStock" />
                     </div>
                 </div>
                 <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
-                    <button type="button" class="btn btn-success fw-bold" @onclick="SaveProduct">Save Product</button>
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancelar</button>
+                    <button type="button" class="btn btn-success fw-bold" @onclick="SaveProduct">Guardar producto</button>
                 </div>
             </div>
         </div>
@@ -172,44 +186,83 @@
 
 @code {
     private string FilterText = string.Empty;
+    private string FilterField = "Id";
+    private readonly SearchDebouncer SearchDebouncer = new();
+    private int SearchRequestVersion;
     private IEnumerable<ProductItemViewModel> Products = [];
     private bool IsLoading = false;
     private bool IsModalOpen = false;
     private bool IsEditing = false;
     private ProductItemViewModel CurrentProduct = new();
     private string StatusMessage = string.Empty;
-    private const int PageSize = 10;
+    private int PageSize = 10;
     private int CurrentPage = 1;
     private ProductItemViewModel? ProductToDelete;
     private IEnumerable<ProductItemViewModel> PagedProducts => Products.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
     private int TotalPages => Math.Max(1, (int)Math.Ceiling(Products.Count() / (double)PageSize));
 
     private void ChangePage(int delta) => CurrentPage = Math.Clamp(CurrentPage + delta, 1, TotalPages);
+    private void OnPageSizeChanged() => CurrentPage = 1;
+
+    private Task OnFilterFieldChanged()
+    {
+        FilterText = string.Empty;
+        SearchDebouncer.CancelPending();
+        return LoadProducts();
+    }
+
+    private Task OnFilterInput(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? string.Empty;
+        FilterText = FilterField == "Id"
+            ? new string(value.Where(char.IsAsciiDigit).Take(10).ToArray())
+            : value;
+        return SearchDebouncer.RunAsync(LoadProducts);
+    }
+
+    private Task SearchImmediately()
+    {
+        SearchDebouncer.CancelPending();
+        return LoadProducts();
+    }
+
+    public void Dispose() => SearchDebouncer.Dispose();
 
     protected override async Task OnInitializedAsync()
     {
         await LoadProducts();
     }
 
-    private async Task OnKeyUp(KeyboardEventArgs e)
+    private Task OnKeyUp(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
         {
-            await LoadProducts();
+            return SearchImmediately();
         }
+
+        return Task.CompletedTask;
     }
 
     private async Task LoadProducts()
     {
+        var requestVersion = ++SearchRequestVersion;
         IsLoading = true;
         try
         {
-            Products = await SearchGateway.SearchProducts(FilterText);
+            var term = FilterText.Trim();
+            var results = await SearchGateway.SearchProducts(term);
+            if (requestVersion != SearchRequestVersion) return;
+
+            Products = string.IsNullOrEmpty(term)
+                ? results
+                : FilterField == "Id"
+                    ? results.Where(p => p.Id.ToString().Contains(term, StringComparison.Ordinal))
+                    : results.Where(p => p.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
             CurrentPage = 1;
         }
         finally
         {
-            IsLoading = false;
+            if (requestVersion == SearchRequestVersion) IsLoading = false;
         }
     }
 
@@ -236,7 +289,7 @@
     {
         if (string.IsNullOrWhiteSpace(CurrentProduct.Name) || CurrentProduct.UnitPrice < 0)
         {
-            StatusMessage = "Please enter a valid product name and non-negative unit price.";
+            StatusMessage = "Ingresa un nombre válido y un precio unitario igual o mayor que cero.";
             return;
         }
 
@@ -245,19 +298,19 @@
             if (IsEditing)
             {
                 await CrudGateway.UpdateProduct(CurrentProduct);
-                StatusMessage = $"Product '{CurrentProduct.Name}' updated successfully.";
+                StatusMessage = $"El producto «{CurrentProduct.Name}» se actualizó correctamente.";
             }
             else
             {
                 await CrudGateway.CreateProduct(CurrentProduct);
-                StatusMessage = $"Product '{CurrentProduct.Name}' created successfully.";
+                StatusMessage = $"El producto «{CurrentProduct.Name}» se creó correctamente.";
             }
             IsModalOpen = false;
             await LoadProducts();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error saving product: {ex.Message}";
+            StatusMessage = "No se pudo guardar el producto. Inténtalo de nuevo.";
         }
     }
 
@@ -273,12 +326,12 @@
         try
         {
             await CrudGateway.DeleteProduct(productId);
-            StatusMessage = $"Product #{productId} removed successfully.";
+            StatusMessage = $"El producto n.º {productId} se eliminó correctamente.";
             await LoadProducts();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error deleting product: {ex.Message}";
+            StatusMessage = "No se pudo eliminar el producto. Inténtalo de nuevo.";
         }
     }
 }

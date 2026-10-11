@@ -62,18 +62,15 @@ internal sealed class QueriesRepository(INorthWindSalesQueriesDataContext contex
         }
 
         var resultList = await context.ToListAsync(orders);
-        var customers = await context.ToListAsync(context.Customers);
-
         var headers = new List<OrderHeaderDto>();
         foreach (var order in resultList)
         {
-            var customer = customers.FirstOrDefault(c => c.Id == order.CustomerId);
             var details = await context.ToListAsync(context.OrderDetails.Where(d => d.OrderId == order.Id));
             headers.Add(new OrderHeaderDto
             {
                 Id = order.Id,
                 CustomerId = order.CustomerId,
-                CustomerName = customer?.Name ?? order.CustomerId,
+                CustomerName = string.IsNullOrEmpty(order.CustomerName) ? order.CustomerId : order.CustomerName,
                 OrderDate = order.OrderDate,
                 ShipAddress = order.ShipAddress,
                 ShipCity = order.ShipCity,
@@ -91,14 +88,12 @@ internal sealed class QueriesRepository(INorthWindSalesQueriesDataContext contex
         var order = await context.FirstOrDefaultAsync(context.Orders.Where(o => o.Id == orderId));
         if (order == null) return null;
 
-        var customer = await context.FirstOrDefaultAsync(context.Customers.Where(c => c.Id == order.CustomerId));
         var detailsEntities = await context.ToListAsync(context.OrderDetails.Where(d => d.OrderId == orderId));
-        var products = await context.ToListAsync(context.Products);
 
         var details = detailsEntities.Select(d => new OrderDetailItemDto
         {
             ProductId = d.ProductId,
-            ProductName = products.FirstOrDefault(p => p.Id == d.ProductId)?.Name ?? $"Producto #{d.ProductId}",
+            ProductName = string.IsNullOrEmpty(d.ProductName) ? $"Producto #{d.ProductId}" : d.ProductName,
             UnitPrice = d.UnitPrice,
             Quantity = d.Quantity
         }).ToList();
@@ -107,7 +102,7 @@ internal sealed class QueriesRepository(INorthWindSalesQueriesDataContext contex
         {
             Id = order.Id,
             CustomerId = order.CustomerId,
-            CustomerName = customer?.Name ?? order.CustomerId,
+            CustomerName = string.IsNullOrEmpty(order.CustomerName) ? order.CustomerId : order.CustomerName,
             OrderDate = order.OrderDate,
             ShipAddress = order.ShipAddress,
             ShipCity = order.ShipCity,

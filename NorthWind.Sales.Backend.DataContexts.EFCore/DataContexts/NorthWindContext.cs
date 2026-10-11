@@ -1,11 +1,10 @@
 namespace NorthWind.Sales.Backend.DataContexts.EFCore.DataContexts;
 
-internal class NorthWindContext : DbContext
+internal class NorthWindContext(IOptions<DBOptions> dbOptions) : DbContext
 {
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseSqlServer(
-            "Server=(localdb)\\mssqllocaldb;Database=NorthWindDB");
+        optionsBuilder.UseSqlServer(dbOptions.Value.ConnectionString);
     }
 
     public DbSet<Order> Orders { get; set; } = null!;

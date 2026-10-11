@@ -3,11 +3,30 @@ namespace NorthWind.Sales.Backend.DataContexts.EFCore.Services;
 internal class NorthWindSalesCommandsDataContext(IOptions<DBOptions> dbOptions)
     : NorthWindSalesContext(dbOptions), INorthWindSalesCommandsDataContext
 {
-    public async Task AddOrderAsync(Order order) => await AddAsync(order);
+    public async Task AddOrderAsync(Order order)
+    {
+        var customer = await Customers.FirstOrDefaultAsync(c => c.Id == order.CustomerId);
+        order.CustomerName = customer?.Name ?? order.CustomerId;
+        await AddAsync(order);
+    }
 
     public async Task AddOrderDetailsAsync(
-        IEnumerable<NorthWind.Sales.Backend.Repositories.Entities.OrderDetail> orderDetails) =>
-        await AddRangeAsync(orderDetails);
+        IEnumerable<NorthWind.Sales.Backend.Repositories.Entities.OrderDetail> orderDetails)
+    {
+        var details = orderDetails.ToArray();
+        var productIds = details.Select(detail => detail.ProductId).Distinct().ToArray();
+        var products = await Products
+            .Where(product => productIds.Contains(product.Id))
+            .ToDictionaryAsync(product => product.Id, product => product.Name);
+
+        foreach (var detail in details)
+        {
+            detail.ProductName = products.GetValueOrDefault(detail.ProductId)
+                ?? $"Producto #{detail.ProductId}";
+        }
+
+        await AddRangeAsync(details);
+    }
 
     public async Task DeductProductStockAsync(IEnumerable<(int ProductId, int Quantity)> items)
     {

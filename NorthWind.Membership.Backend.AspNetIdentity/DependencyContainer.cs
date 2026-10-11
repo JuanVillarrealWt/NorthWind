@@ -8,6 +8,7 @@ public static class MembershipIdentityDependencyContainer
     {
         services.Configure(configureMembershipDBOptions);
         services.AddDbContext<NorthWindMembershipContext>();
+        services.AddHostedService<MembershipDatabaseMigrationHostedService>();
         services.AddIdentityCore<NorthWindUser>(options =>
         {
             options.User.RequireUniqueEmail = true;

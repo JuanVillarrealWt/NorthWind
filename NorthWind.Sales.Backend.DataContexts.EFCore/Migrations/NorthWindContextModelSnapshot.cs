@@ -17,6 +17,7 @@ partial class NorthWindContextModelSnapshot : ModelSnapshot
   {
    b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("int"); SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
    b.Property<string>("CustomerId").IsRequired().HasMaxLength(5).HasColumnType("nchar(5)").IsFixedLength();
+   b.Property<string>("CustomerName").IsRequired().HasMaxLength(40).HasColumnType("nvarchar(40)");
    b.Property<double>("Discount").HasColumnType("float"); b.Property<int>("DiscountType").HasColumnType("int"); b.Property<DateTime>("OrderDate").HasColumnType("datetime2");
    b.Property<string>("ShipAddress").IsRequired().HasMaxLength(60).HasColumnType("nvarchar(60)"); b.Property<string>("ShipCity").IsRequired().HasMaxLength(15).HasColumnType("nvarchar(15)");
    b.Property<string>("ShipCountry").IsRequired().HasMaxLength(15).HasColumnType("nvarchar(15)"); b.Property<string>("ShipPostalCode").IsRequired().HasMaxLength(10).HasColumnType("nvarchar(10)");
@@ -36,12 +37,10 @@ partial class NorthWindContextModelSnapshot : ModelSnapshot
   });
   modelBuilder.Entity("NorthWind.Sales.Backend.Repositories.Entities.OrderDetail",b=>
   {
-   b.Property<int>("OrderId").HasColumnType("int"); b.Property<int>("ProductId").HasColumnType("int"); b.Property<short>("Quantity").HasColumnType("smallint"); b.Property<decimal>("UnitPrice").HasPrecision(8,2).HasColumnType("decimal(8,2)");
+   b.Property<int>("OrderId").HasColumnType("int"); b.Property<int>("ProductId").HasColumnType("int"); b.Property<string>("ProductName").IsRequired().HasMaxLength(40).HasColumnType("nvarchar(40)"); b.Property<short>("Quantity").HasColumnType("smallint"); b.Property<decimal>("UnitPrice").HasPrecision(8,2).HasColumnType("decimal(8,2)");
    b.HasKey("OrderId","ProductId"); b.HasIndex("ProductId"); b.ToTable("OrderDetails");
   });
-  modelBuilder.Entity("NorthWind.Sales.Backend.BusinessObjects.POCOEntities.Order",b=>
-  { b.HasOne("NorthWind.Sales.Backend.Repositories.Entities.Customer",null).WithMany().HasForeignKey("CustomerId").OnDelete(DeleteBehavior.Cascade).IsRequired(); });
   modelBuilder.Entity("NorthWind.Sales.Backend.Repositories.Entities.OrderDetail",b=>
-  { b.HasOne("NorthWind.Sales.Backend.BusinessObjects.POCOEntities.Order","Order").WithMany().HasForeignKey("OrderId").OnDelete(DeleteBehavior.Cascade).IsRequired(); b.HasOne("NorthWind.Sales.Backend.Repositories.Entities.Product",null).WithMany().HasForeignKey("ProductId").OnDelete(DeleteBehavior.Cascade).IsRequired(); b.Navigation("Order"); });
+  { b.HasOne("NorthWind.Sales.Backend.BusinessObjects.POCOEntities.Order","Order").WithMany().HasForeignKey("OrderId").OnDelete(DeleteBehavior.Cascade).IsRequired(); b.Navigation("Order"); });
  }
 }

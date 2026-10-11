@@ -1,4 +1,5 @@
 @page "/invoices"
+@implements IDisposable
 @attribute [Authorize]
 @using NorthWind.Sales.Entities.Dtos.SearchOrders
 @using NorthWind.Sales.Frontend.BusinessObjects.Interfaces
@@ -24,14 +25,19 @@
             <div class="row g-3">
                 <div class="col-md-9">
                     <div class="input-group">
-                        <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
-                        <input type="text" class="form-control form-control-lg"
-                               placeholder="Buscar por # de Orden o ID/Nombre del Cliente..."
-                               @bind="FilterText" @bind:event="oninput" @keyup="OnKeyUp" />
+                        <select class="form-select form-select-lg" style="max-width: 210px" @bind="FilterField" @bind:after="OnFilterFieldChanged" aria-label="Campo de búsqueda">
+                            <option value="OrderId">Número de orden</option>
+                            <option value="CustomerId">ID del cliente</option>
+                            <option value="CustomerName">Nombre del cliente</option>
+                        </select>
+                        <input type="text" class="form-control form-control-lg" inputmode="@(FilterField == "OrderId" ? "numeric" : null)"
+                               maxlength="@(FilterField == "OrderId" ? 10 : FilterField == "CustomerId" ? 5 : null)"
+                               placeholder="@(FilterField == "OrderId" ? "Ingresa el número de orden" : FilterField == "CustomerId" ? "Ingresa el ID del cliente" : "Ingresa el nombre del cliente")"
+                               value="@FilterText" @oninput="OnFilterInput" @onkeyup="OnKeyUp" />
                     </div>
                 </div>
                 <div class="col-md-3 d-grid">
-                    <button class="btn btn-primary btn-lg fw-bold" @onclick="ExecuteSearch">
+                    <button class="btn btn-primary btn-lg fw-bold" @onclick="SearchImmediately">
                         <i class="bi bi-search me-1"></i> Buscar Facturas
                     </button>
                 </div>
@@ -88,7 +94,7 @@
                                     <td class="text-end fw-bold text-success font-monospace fs-6">@CurrencyFormatter.Format(order.Total)</td>
                                     <td class="text-center">
                                         <button class="btn btn-outline-primary btn-sm fw-bold" @onclick="() => ViewInvoiceDetails(order.Id)">
-                                            <i class="bi bi-eye me-1"></i> Ver Factura
+                                            <i class="bi bi-eye me-1"></i> Ver factura
                                         </button>
                                     </td>
                                 </tr>
@@ -98,10 +104,20 @@
                 </div>
             </div>
         </div>
-        @if (Orders.Count() > PageSize)
+        @if (Orders.Any())
         {
             <div class="d-flex justify-content-between align-items-center p-3">
                 <small class="text-muted">Página @CurrentPage de @TotalPages · @Orders.Count() facturas</small>
+                <div class="d-flex align-items-center gap-2">
+                    <label for="invoicePageSize" class="form-label mb-0 small">Elementos por página</label>
+                    <select id="invoicePageSize" class="form-select form-select-sm" style="width: auto" @bind="PageSize" @bind:after="OnPageSizeChanged" aria-label="Elementos por página">
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                        <option value="30">30</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
                 <div class="btn-group">
                     <button class="btn btn-outline-primary" disabled="@(CurrentPage == 1)" @onclick="() => ChangePage(-1)">Anterior</button>
                     <button class="btn btn-outline-primary" disabled="@(CurrentPage >= TotalPages)" @onclick="() => ChangePage(1)">Siguiente</button>
@@ -121,7 +137,7 @@
                         <h4 class="modal-title fw-bold mb-0">
                             <i class="bi bi-file-earmark-text me-2 text-primary"></i> FACTURA #@SelectedInvoice.Header.Id
                         </h4>
-                        <small class="text-muted">NorthWind Sales Management System</small>
+                        <small class="text-muted">Sistema de gestión de ventas NorthWind</small>
                     </div>
                     <button type="button" class="btn-close btn-close-white" @onclick="CloseInvoiceModal"></button>
                 </div>
@@ -192,7 +208,7 @@
                 </div>
                 <div class="modal-footer bg-light d-flex justify-content-between">
                     <button type="button" class="btn btn-primary fw-bold shadow-sm" @onclick="PrintInvoice">
-                        <i class="bi bi-printer-fill me-1"></i> Imprimir / Descargar PDF
+                        <i class="bi bi-printer-fill me-1"></i> Imprimir / descargar PDF
                     </button>
                     <button type="button" class="btn btn-secondary fw-bold" @onclick="CloseInvoiceModal">
                         <i class="bi bi-x-lg me-1"></i> Cerrar
@@ -206,40 +222,93 @@
 
 @code {
     private string FilterText = string.Empty;
+    private string FilterField = "OrderId";
+    private readonly SearchDebouncer SearchDebouncer = new();
+    private int SearchRequestVersion;
     private IEnumerable<OrderHeaderDto> Orders = [];
+    private List<OrderHeaderDto>? AllOrders;
     private OrderInvoiceDto? SelectedInvoice = null;
     private bool IsLoading = false;
-    private const int PageSize = 10;
+    private int PageSize = 10;
     private int CurrentPage = 1;
     private IEnumerable<OrderHeaderDto> PagedOrders => Orders.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
     private int TotalPages => Math.Max(1, (int)Math.Ceiling(Orders.Count() / (double)PageSize));
 
+    private Task OnFilterFieldChanged()
+    {
+        FilterText = string.Empty;
+        SearchDebouncer.CancelPending();
+        return ExecuteSearch();
+    }
+
+    private Task OnFilterInput(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? string.Empty;
+        FilterText = FilterField switch
+        {
+            "OrderId" => new string(value.Where(char.IsAsciiDigit).Take(10).ToArray()),
+            "CustomerId" => new string(value.Where(char.IsAsciiLetterOrDigit).Take(5).ToArray()).ToUpperInvariant(),
+            _ => value
+        };
+        return SearchDebouncer.RunAsync(ExecuteSearch);
+    }
+
+    private Task SearchImmediately()
+    {
+        SearchDebouncer.CancelPending();
+        return ExecuteSearch();
+    }
+
+    public void Dispose() => SearchDebouncer.Dispose();
+
     private void ChangePage(int delta) => CurrentPage = Math.Clamp(CurrentPage + delta, 1, TotalPages);
+    private void OnPageSizeChanged() => CurrentPage = 1;
 
     protected override async Task OnInitializedAsync()
     {
         await ExecuteSearch();
     }
 
-    private async Task OnKeyUp(KeyboardEventArgs e)
+    private Task OnKeyUp(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
         {
-            await ExecuteSearch();
+            return SearchImmediately();
         }
+
+        return Task.CompletedTask;
     }
 
     private async Task ExecuteSearch()
     {
+        var requestVersion = ++SearchRequestVersion;
         IsLoading = true;
         try
         {
-            Orders = await OrdersGateway.SearchOrders(FilterText);
+            var term = FilterText.Trim();
+            var results = AllOrders;
+            if (results == null)
+            {
+                results = (await OrdersGateway.SearchOrders(null)).ToList();
+                if (requestVersion != SearchRequestVersion) return;
+                AllOrders = results;
+            }
+
+            if (requestVersion != SearchRequestVersion) return;
+
+            Orders = string.IsNullOrEmpty(term)
+                ? results
+                : FilterField switch
+                {
+                    "OrderId" => results.Where(o => o.Id.ToString().Contains(term, StringComparison.Ordinal)),
+                    "CustomerId" => results.Where(o => o.CustomerId.Contains(term, StringComparison.OrdinalIgnoreCase)),
+                    _ => results.Where(o => o.CustomerName.Contains(term, StringComparison.OrdinalIgnoreCase))
+                };
             CurrentPage = 1;
         }
         finally
         {
-            IsLoading = false;
+            if (requestVersion == SearchRequestVersion) IsLoading = false;
         }
     }
 

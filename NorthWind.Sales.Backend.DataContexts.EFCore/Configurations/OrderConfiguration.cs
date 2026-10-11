@@ -11,6 +11,12 @@ internal class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasMaxLength(5)
             .IsFixedLength();
 
+        builder.Property(o => o.CustomerName)
+            .IsRequired()
+            .HasMaxLength(40);
+
+        builder.HasIndex(o => o.CustomerId);
+
         builder.Property(o => o.ShipAddress)
             .IsRequired()
             .HasMaxLength(60);
@@ -24,6 +30,5 @@ internal class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.ShipPostalCode)
             .HasMaxLength(10);
 
-        builder.HasOne<Customer>().WithMany().HasForeignKey(o => o.CustomerId);
     }
 }

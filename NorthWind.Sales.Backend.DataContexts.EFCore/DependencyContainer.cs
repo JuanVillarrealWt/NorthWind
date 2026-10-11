@@ -7,6 +7,9 @@ public static class DependencyContainer
         Action<NorthWind.Sales.Backend.DataContexts.EFCore.Options.DBOptions> configureDBOptions)
     {
         services.Configure(configureDBOptions);
+        services.AddDbContext<NorthWind.Sales.Backend.DataContexts.EFCore.DataContexts.NorthWindContext>();
+        services.AddDbContext<NorthWind.Sales.Backend.DataContexts.EFCore.DataContexts.NorthWindDomainLogsContext>();
+        services.AddHostedService<NorthWind.Sales.Backend.DataContexts.EFCore.Services.DatabaseMigrationHostedService>();
         services.AddScoped<
             NorthWind.Sales.Backend.Repositories.Interfaces.INorthWindSalesCommandsDataContext,
             NorthWind.Sales.Backend.DataContexts.EFCore.Services.NorthWindSalesCommandsDataContext>();

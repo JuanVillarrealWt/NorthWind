@@ -1,3 +1,4 @@
+@implements IDisposable
 @using NorthWind.Sales.Frontend.BusinessObjects.Interfaces
 @using NorthWind.Sales.Frontend.BusinessObjects.ViewModels
 @inject ISearchProductsGateway Gateway
@@ -15,25 +16,29 @@
                 </div>
                 <div class="modal-body p-4">
                     <div class="input-group mb-3">
-                        <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
-                        <input type="text" class="form-control form-control-lg" placeholder="Buscar por ID o Nombre de Producto..."
-                               @bind="FilterText" @bind:event="oninput" @keyup="OnKeyUp" />
-                        <button class="btn btn-success" type="button" @onclick="ExecuteSearch">Buscar</button>
+                        <select class="form-select" style="max-width: 160px" @bind="FilterField" @bind:after="OnFilterFieldChanged" aria-label="Campo de búsqueda">
+                            <option value="Id">ID del producto</option>
+                            <option value="Name">Nombre</option>
+                        </select>
+                        <input type="text" class="form-control form-control-lg" inputmode="@(FilterField == "Id" ? "numeric" : null)"
+                               placeholder="@(FilterField == "Id" ? "ID numérico" : "Nombre del producto")"
+                               value="@FilterText" @oninput="OnFilterInput" @onkeyup="OnKeyUp" />
+                        <button class="btn btn-success" type="button" @onclick="SearchImmediately">Buscar</button>
                     </div>
 
                     @if (IsLoading)
                     {
                         <div class="text-center py-4">
                             <div class="spinner-border text-success" role="status">
-                                <span class="visually-hidden">Loading...</span>
+                                <span class="visually-hidden">Cargando...</span>
                             </div>
-                            <p class="mt-2 text-muted">Searching products...</p>
+                            <p class="mt-2 text-muted">Buscando productos...</p>
                         </div>
                     }
                     else if (Products == null || !Products.Any())
                     {
                         <div class="alert alert-warning text-center my-3">
-                            <i class="bi bi-exclamation-triangle me-2"></i> No products found matching the search criteria.
+                            <i class="bi bi-exclamation-triangle me-2"></i> No se encontraron productos con ese criterio de búsqueda.
                         </div>
                     }
                     else
@@ -43,10 +48,10 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th>ID</th>
-                                        <th>Product Name</th>
-                                        <th>Unit Price</th>
+                                        <th>Nombre del producto</th>
+                                        <th>Precio unitario</th>
                                         <th>Stock</th>
-                                        <th class="text-end">Action</th>
+                                        <th class="text-end">Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -59,16 +64,16 @@
                                             <td>
                                                 @if (product.UnitsInStock > 0)
                                                 {
-                                                    <span class="badge bg-success">@product.UnitsInStock in stock</span>
+                                                    <span class="badge bg-success">@product.UnitsInStock disponibles</span>
                                                 }
                                                 else
                                                 {
-                                                    <span class="badge bg-danger">Out of stock</span>
+                                                    <span class="badge bg-danger">Agotado</span>
                                                 }
                                             </td>
                                             <td class="text-end">
                                                 <button class="btn btn-sm btn-primary fw-bold" @onclick="() => SelectProduct(product)">
-                                                    <i class="bi bi-plus-circle me-1"></i> Select
+                                                    <i class="bi bi-plus-circle me-1"></i> Seleccionar
                                                 </button>
                                             </td>
                                         </tr>
@@ -80,30 +85,40 @@
                         <!-- Block Pagination -->
                         <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded border">
                             <small class="text-muted">
-                                Showing @(Math.Min((CurrentPage - 1) * PageSize + 1, TotalItems)) to @(Math.Min(CurrentPage * PageSize, TotalItems)) of @TotalItems products
+                                Mostrando @(Math.Min((CurrentPage - 1) * PageSize + 1, TotalItems)) a @(Math.Min(CurrentPage * PageSize, TotalItems)) de @TotalItems productos
                             </small>
-                            <nav aria-label="Product search block pagination">
-                                <ul class="pagination pagination-sm mb-0">
-                                    <li class="page-item @(CurrentPage == 1 ? "disabled" : "")">
-                                        <button class="page-link" @onclick="PreviousPage">Previous</button>
-                                    </li>
-                                    @for (int p = 1; p <= TotalPages; p++)
-                                    {
-                                        var pageNumber = p;
-                                        <li class="page-item @(CurrentPage == pageNumber ? "active" : "")">
-                                            <button class="page-link" @onclick="() => GoToPage(pageNumber)">@pageNumber</button>
+                            <div class="d-flex align-items-center gap-2">
+                                <label for="productModalPageSize" class="form-label mb-0 small">Elementos por página</label>
+                                <select id="productModalPageSize" class="form-select form-select-sm" style="width: auto" @bind="PageSize" @bind:after="OnPageSizeChanged" aria-label="Elementos por página">
+                                    <option value="10">10</option>
+                                    <option value="15">15</option>
+                                    <option value="20">20</option>
+                                    <option value="30">30</option>
+                                    <option value="50">50</option>
+                                </select>
+                                <nav aria-label="Paginación de búsqueda de productos">
+                                    <ul class="pagination pagination-sm mb-0">
+                                        <li class="page-item @(CurrentPage == 1 ? "disabled" : "")">
+                                            <button class="page-link" @onclick="PreviousPage">Anterior</button>
                                         </li>
-                                    }
-                                    <li class="page-item @(CurrentPage == TotalPages || TotalPages == 0 ? "disabled" : "")">
-                                        <button class="page-link" @onclick="NextPage">Next</button>
-                                    </li>
-                                </ul>
-                            </nav>
+                                        @for (int p = 1; p <= TotalPages; p++)
+                                        {
+                                            var pageNumber = p;
+                                            <li class="page-item @(CurrentPage == pageNumber ? "active" : "")">
+                                                <button class="page-link" @onclick="() => GoToPage(pageNumber)">@pageNumber</button>
+                                            </li>
+                                        }
+                                        <li class="page-item @(CurrentPage == TotalPages || TotalPages == 0 ? "disabled" : "")">
+                                            <button class="page-link" @onclick="NextPage">Siguiente</button>
+                                        </li>
+                                    </ul>
+                                </nav>
+                            </div>
                         </div>
                     }
                 </div>
                 <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-secondary" @onclick="Close">Close</button>
+                    <button type="button" class="btn btn-secondary" @onclick="Close">Cerrar</button>
                 </div>
             </div>
         </div>
@@ -116,18 +131,47 @@
     [Parameter] public EventCallback<ProductItemViewModel> OnProductSelected { get; set; }
 
     private string FilterText = string.Empty;
+    private string FilterField = "Id";
+    private readonly SearchDebouncer SearchDebouncer = new();
+    private int SearchRequestVersion;
     private IEnumerable<ProductItemViewModel> Products = [];
     private bool IsLoading = false;
 
     // Block Pagination state
     private int CurrentPage = 1;
-    private const int PageSize = 5;
+    private int PageSize = 10;
 
     private int TotalItems => Products.Count();
     private int TotalPages => (int)Math.Ceiling((double)TotalItems / PageSize);
 
+    private void OnPageSizeChanged() => CurrentPage = 1;
+
     private IEnumerable<ProductItemViewModel> PaginatedProducts =>
         Products.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
+
+    private Task OnFilterFieldChanged()
+    {
+        FilterText = string.Empty;
+        SearchDebouncer.CancelPending();
+        return ExecuteSearch();
+    }
+
+    private Task OnFilterInput(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? string.Empty;
+        FilterText = FilterField == "Id"
+            ? new string(value.Where(char.IsAsciiDigit).Take(10).ToArray())
+            : value;
+        return SearchDebouncer.RunAsync(ExecuteSearch);
+    }
+
+    private Task SearchImmediately()
+    {
+        SearchDebouncer.CancelPending();
+        return ExecuteSearch();
+    }
+
+    public void Dispose() => SearchDebouncer.Dispose();
 
     protected override async Task OnParametersSetAsync()
     {
@@ -137,25 +181,36 @@
         }
     }
 
-    private async Task OnKeyUp(KeyboardEventArgs e)
+    private Task OnKeyUp(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
         {
-            await ExecuteSearch();
+            return SearchImmediately();
         }
+
+        return Task.CompletedTask;
     }
 
     private async Task ExecuteSearch()
     {
+        var requestVersion = ++SearchRequestVersion;
         IsLoading = true;
         CurrentPage = 1;
         try
         {
-            Products = await Gateway.SearchProducts(FilterText);
+            var term = FilterText.Trim();
+            var results = await Gateway.SearchProducts(term);
+            if (requestVersion != SearchRequestVersion) return;
+
+            Products = string.IsNullOrEmpty(term)
+                ? results
+                : FilterField == "Id"
+                    ? results.Where(p => p.Id.ToString().Contains(term, StringComparison.Ordinal))
+                    : results.Where(p => p.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
         finally
         {
-            IsLoading = false;
+            if (requestVersion == SearchRequestVersion) IsLoading = false;
         }
     }
 

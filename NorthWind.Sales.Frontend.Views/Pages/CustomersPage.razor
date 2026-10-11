@@ -1,22 +1,23 @@
 @page "/customers"
+@implements IDisposable
 @attribute [Authorize]
 @using NorthWind.Sales.Frontend.BusinessObjects.Interfaces
 @using NorthWind.Sales.Frontend.BusinessObjects.ViewModels
 @inject ISearchCustomersGateway SearchGateway
 @inject ICustomerCrudGateway CrudGateway
 
-<PageTitle>Customer Management - NorthWind</PageTitle>
+<PageTitle>Administración de clientes - NorthWind</PageTitle>
 
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="fw-bold text-primary mb-1">
-                <i class="bi bi-people-fill me-2"></i> Customer Management
+                <i class="bi bi-people-fill me-2"></i> Administración de clientes
             </h2>
-            <p class="text-muted mb-0">Create, update, or remove customer records manually or via SQL.</p>
+            <p class="text-muted mb-0">Crea, actualiza o elimina registros de clientes.</p>
         </div>
         <button class="btn btn-primary btn-lg fw-bold shadow-sm" @onclick="OpenCreateModal">
-            <i class="bi bi-person-plus-fill me-1"></i> Add New Customer
+            <i class="bi bi-person-plus-fill me-1"></i> Agregar cliente
         </button>
     </div>
 
@@ -31,11 +32,14 @@
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body p-4">
             <div class="input-group">
-                <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control form-control-lg"
-                       placeholder="Filter by Customer ID or Name..."
-                       @bind="FilterText" @bind:event="oninput" @keyup="OnKeyUp" />
-                <button class="btn btn-outline-primary fw-bold" @onclick="LoadCustomers">Search</button>
+                <select class="form-select form-select-lg" style="max-width: 190px" @bind="FilterField" @bind:after="OnFilterFieldChanged" aria-label="Campo de búsqueda">
+                    <option value="Id">ID del cliente</option>
+                    <option value="Name">Nombre</option>
+                </select>
+                <input type="text" class="form-control form-control-lg" maxlength="@(FilterField == "Id" ? 5 : null)"
+                       placeholder="@(FilterField == "Id" ? "Ingresa el código de cliente" : "Ingresa el nombre")"
+                       value="@FilterText" @oninput="OnFilterInput" @onkeyup="OnKeyUp" />
+                <button class="btn btn-outline-primary fw-bold" @onclick="SearchImmediately">Buscar</button>
             </div>
         </div>
     </div>
@@ -44,9 +48,9 @@
     {
         <div class="text-center py-5">
             <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading customers...</span>
+                <span class="visually-hidden">Cargando clientes...</span>
             </div>
-            <p class="mt-2 text-muted">Loading customer directory...</p>
+            <p class="mt-2 text-muted">Cargando directorio de clientes...</p>
         </div>
     }
     else if (Customers == null || !Customers.Any())
@@ -54,8 +58,8 @@
         <div class="card shadow-sm border-0 text-center py-5">
             <div class="card-body">
                 <i class="bi bi-people text-muted display-4 mb-3 d-block"></i>
-                <h4 class="text-muted fw-bold">No customers found</h4>
-                <p class="text-muted">Click "Add New Customer" above to register a new customer.</p>
+                <h4 class="text-muted fw-bold">No se encontraron clientes</h4>
+                <p class="text-muted">Selecciona «Agregar cliente» para registrar uno nuevo.</p>
             </div>
         </div>
     }
@@ -67,10 +71,10 @@
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th>Customer ID</th>
-                                <th>Company / Full Name</th>
-                                <th class="text-end">Current Balance</th>
-                                <th class="text-center">Actions</th>
+                                <th>ID del cliente</th>
+                                <th>Empresa / nombre completo</th>
+                                <th class="text-end">Saldo actual</th>
+                                <th class="text-center">Acciones</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -82,10 +86,10 @@
                                     <td class="text-end font-monospace text-dark fs-6">@CurrencyFormatter.Format(c.CurrentBalance)</td>
                                     <td class="text-center">
                                         <button class="btn btn-outline-warning btn-sm me-2 fw-bold" @onclick="() => OpenEditModal(c)">
-                                            <i class="bi bi-pencil-square me-1"></i> Edit
+                                            <i class="bi bi-pencil-square me-1"></i> Editar
                                         </button>
                                         <button class="btn btn-outline-danger btn-sm fw-bold" @onclick="() => DeleteCustomer(c.Id)">
-                                            <i class="bi bi-trash-fill me-1"></i> Delete
+                                            <i class="bi bi-trash-fill me-1"></i> Eliminar
                                         </button>
                                     </td>
                                 </tr>
@@ -95,10 +99,20 @@
                 </div>
             </div>
         </div>
-        @if (Customers.Count() > PageSize)
+        @if (Customers.Any())
         {
             <div class="d-flex justify-content-between align-items-center p-3">
                 <small class="text-muted">Página @CurrentPage de @TotalPages · @Customers.Count() clientes</small>
+                <div class="d-flex align-items-center gap-2">
+                    <label for="customerPageSize" class="form-label mb-0 small">Elementos por página</label>
+                    <select id="customerPageSize" class="form-select form-select-sm" style="width: auto" @bind="PageSize" @bind:after="OnPageSizeChanged" aria-label="Elementos por página">
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                        <option value="30">30</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
                 <div class="btn-group">
                     <button class="btn btn-outline-primary" disabled="@(CurrentPage == 1)" @onclick="() => ChangePage(-1)">Anterior</button>
                     <button class="btn btn-outline-primary" disabled="@(CurrentPage >= TotalPages)" @onclick="() => ChangePage(1)">Siguiente</button>
@@ -115,27 +129,27 @@
             <div class="modal-content shadow-lg border-0">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title fw-bold">
-                        <i class="bi bi-person-fill me-2"></i> @(IsEditing ? "Edit Customer" : "Create Customer")
+                        <i class="bi bi-person-fill me-2"></i> @(IsEditing ? "Editar cliente" : "Crear cliente")
                     </h5>
                     <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Customer ID (5 letters code)</label>
-                        <input type="text" class="form-control" maxlength="5" @bind="CurrentCustomer.Id" disabled="@IsEditing" placeholder="e.g. ALFKI" />
+                        <label class="form-label fw-bold">ID del cliente (código de 5 caracteres)</label>
+                        <input type="text" class="form-control" maxlength="5" @bind="CurrentCustomer.Id" disabled="@IsEditing" placeholder="Ej.: ALFKI" />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Customer / Company Name</label>
-                        <input type="text" class="form-control" @bind="CurrentCustomer.Name" placeholder="e.g. Alfreds Futterkiste" />
+                        <label class="form-label fw-bold">Nombre del cliente o empresa</label>
+                        <input type="text" class="form-control" @bind="CurrentCustomer.Name" placeholder="Ej.: Alfreds Futterkiste" />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Current Balance ($)</label>
+                        <label class="form-label fw-bold">Saldo actual ($)</label>
                         <input type="number" step="0.01" class="form-control" @bind="CurrentCustomer.CurrentBalance" />
                     </div>
                 </div>
                 <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
-                    <button type="button" class="btn btn-primary fw-bold" @onclick="SaveCustomer">Save Customer</button>
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancelar</button>
+                    <button type="button" class="btn btn-primary fw-bold" @onclick="SaveCustomer">Guardar cliente</button>
                 </div>
             </div>
         </div>
@@ -161,44 +175,83 @@
 
 @code {
     private string FilterText = string.Empty;
+    private string FilterField = "Id";
+    private readonly SearchDebouncer SearchDebouncer = new();
+    private int SearchRequestVersion;
     private IEnumerable<CustomerItemViewModel> Customers = [];
     private bool IsLoading = false;
     private bool IsModalOpen = false;
     private bool IsEditing = false;
     private CustomerItemViewModel CurrentCustomer = new();
     private string StatusMessage = string.Empty;
-    private const int PageSize = 10;
+    private int PageSize = 10;
     private int CurrentPage = 1;
     private CustomerItemViewModel? CustomerToDelete;
     private IEnumerable<CustomerItemViewModel> PagedCustomers => Customers.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
     private int TotalPages => Math.Max(1, (int)Math.Ceiling(Customers.Count() / (double)PageSize));
 
     private void ChangePage(int delta) => CurrentPage = Math.Clamp(CurrentPage + delta, 1, TotalPages);
+    private void OnPageSizeChanged() => CurrentPage = 1;
+
+    private Task OnFilterFieldChanged()
+    {
+        FilterText = string.Empty;
+        SearchDebouncer.CancelPending();
+        return LoadCustomers();
+    }
+
+    private Task OnFilterInput(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? string.Empty;
+        FilterText = FilterField == "Id"
+            ? new string(value.Where(char.IsAsciiLetterOrDigit).Take(5).ToArray()).ToUpperInvariant()
+            : value;
+        return SearchDebouncer.RunAsync(LoadCustomers);
+    }
+
+    private Task SearchImmediately()
+    {
+        SearchDebouncer.CancelPending();
+        return LoadCustomers();
+    }
+
+    public void Dispose() => SearchDebouncer.Dispose();
 
     protected override async Task OnInitializedAsync()
     {
         await LoadCustomers();
     }
 
-    private async Task OnKeyUp(KeyboardEventArgs e)
+    private Task OnKeyUp(KeyboardEventArgs e)
     {
         if (e.Key == "Enter")
         {
-            await LoadCustomers();
+            return SearchImmediately();
         }
+
+        return Task.CompletedTask;
     }
 
     private async Task LoadCustomers()
     {
+        var requestVersion = ++SearchRequestVersion;
         IsLoading = true;
         try
         {
-            Customers = await SearchGateway.SearchCustomers(FilterText);
+            var term = FilterText.Trim();
+            var results = await SearchGateway.SearchCustomers(term);
+            if (requestVersion != SearchRequestVersion) return;
+
+            Customers = string.IsNullOrEmpty(term)
+                ? results
+                : FilterField == "Id"
+                    ? results.Where(c => c.Id.Contains(term, StringComparison.OrdinalIgnoreCase))
+                    : results.Where(c => c.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
             CurrentPage = 1;
         }
         finally
         {
-            IsLoading = false;
+            if (requestVersion == SearchRequestVersion) IsLoading = false;
         }
     }
 
@@ -225,7 +278,7 @@
     {
         if (string.IsNullOrWhiteSpace(CurrentCustomer.Id) || string.IsNullOrWhiteSpace(CurrentCustomer.Name))
         {
-            StatusMessage = "Please enter valid Customer ID and Name.";
+            StatusMessage = "Ingresa un ID de cliente y un nombre válidos.";
             return;
         }
 
@@ -234,19 +287,19 @@
             if (IsEditing)
             {
                 await CrudGateway.UpdateCustomer(CurrentCustomer);
-                StatusMessage = $"Customer '{CurrentCustomer.Name}' updated successfully.";
+                StatusMessage = $"El cliente «{CurrentCustomer.Name}» se actualizó correctamente.";
             }
             else
             {
                 await CrudGateway.CreateCustomer(CurrentCustomer);
-                StatusMessage = $"Customer '{CurrentCustomer.Name}' created successfully.";
+                StatusMessage = $"El cliente «{CurrentCustomer.Name}» se creó correctamente.";
             }
             IsModalOpen = false;
             await LoadCustomers();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error saving customer: {ex.Message}";
+            StatusMessage = "No se pudo guardar el cliente. Inténtalo de nuevo.";
         }
     }
 
@@ -262,12 +315,12 @@
         try
         {
             await CrudGateway.DeleteCustomer(customerId);
-            StatusMessage = $"Customer '{customerId}' removed successfully.";
+            StatusMessage = $"El cliente «{customerId}» se eliminó correctamente.";
             await LoadCustomers();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            StatusMessage = $"Error deleting customer: {ex.Message}";
+            StatusMessage = "No se pudo eliminar el cliente. Inténtalo de nuevo.";
         }
     }
 }

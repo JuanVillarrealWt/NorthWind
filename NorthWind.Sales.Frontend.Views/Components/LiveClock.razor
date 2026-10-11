@@ -1,0 +1,25 @@
+@implements IDisposable
+@using System.Globalization
+
+<span class="live-clock d-inline-flex align-items-center gap-2 me-auto"
+      title="@CurrentTime.ToString("F", ColombianCulture)" aria-label="Hora local: @CurrentTime.ToString("HH:mm:ss")">
+    <i class="bi bi-clock" aria-hidden="true"></i>
+    <time datetime="@CurrentTime.ToString("O")">@CurrentTime.ToString("HH:mm:ss")</time>
+</span>
+
+@code {
+    private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
+    private DateTime CurrentTime = DateTime.Now;
+    private Timer? ClockTimer;
+
+    protected override void OnInitialized()
+    {
+        ClockTimer = new Timer(_ => _ = InvokeAsync(() =>
+        {
+            CurrentTime = DateTime.Now;
+            StateHasChanged();
+        }), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
+    public void Dispose() => ClockTimer?.Dispose();
+}
