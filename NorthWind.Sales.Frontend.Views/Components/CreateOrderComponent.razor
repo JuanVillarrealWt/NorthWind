@@ -1,0 +1,260 @@
+@using NorthWind.Sales.Frontend.BusinessObjects.ViewModels
+
+<EditForm Model="Order" OnValidSubmit="Order.Send">
+    <ModelValidator T="CreateOrderViewModel" Validator="Order.Validator" @ref="Order.ModelValidatorComponentReference" />
+    <ValidationSummary class="alert alert-danger shadow-sm" />
+
+    @if (!string.IsNullOrEmpty(DuplicateWarningMessage))
+    {
+        <div class="alert alert-warning alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @DuplicateWarningMessage
+            <button type="button" class="btn-close" @onclick="() => DuplicateWarningMessage = string.Empty"></button>
+        </div>
+    }
+
+    <!-- Encabezado de la Orden (Maestro) -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-primary text-white d-flex align-items-center">
+            <i class="bi bi-person-lines-fill me-2 fs-5"></i>
+            <h5 class="mb-0 fw-bold">Encabezado de la Orden (Datos del Cliente)</h5>
+        </div>
+        <div class="card-body p-4">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="customerId" class="form-label fw-bold">@CreateOrderMessages.CustomerIdLabel</label>
+                    <div class="input-group">
+                        <InputText class="form-control" id="customerId" placeholder="@CreateOrderMessages.CustomerIdLabel" @bind-Value="Order.CustomerId" />
+                        <button type="button" class="btn btn-outline-primary fw-bold" @onclick="OpenCustomerModal">
+                            <i class="bi bi-search me-1"></i> Búsqueda Inteligente
+                        </button>
+                    </div>
+                    <ValidationMessage For="() => Order.CustomerId" />
+                    @if (!string.IsNullOrEmpty(SelectedCustomerName))
+                    {
+                        <div class="form-text text-success fw-bold mt-1">
+                            <i class="bi bi-check-circle-fill me-1"></i> @SelectedCustomerName
+                        </div>
+                    }
+                </div>
+
+                <div class="col-md-6">
+                    <label for="shipAddress" class="form-label fw-bold">@CreateOrderMessages.ShipAddressLabel</label>
+                    <InputText class="form-control" id="shipAddress" placeholder="@CreateOrderMessages.ShipAddressLabel" @bind-Value="Order.ShipAddress" />
+                    <ValidationMessage For="() => Order.ShipAddress" />
+                </div>
+
+                <div class="col-md-4">
+                    <label for="shipCity" class="form-label fw-bold">@CreateOrderMessages.ShipCityLabel</label>
+                    <InputText class="form-control" id="shipCity" placeholder="@CreateOrderMessages.ShipCityLabel" @bind-Value="Order.ShipCity" />
+                    <ValidationMessage For="() => Order.ShipCity" />
+                </div>
+
+                <div class="col-md-4">
+                    <label for="shipCountry" class="form-label fw-bold">@CreateOrderMessages.ShipCountryLabel</label>
+                    <InputText class="form-control" id="shipCountry" placeholder="@CreateOrderMessages.ShipCountryLabel" @bind-Value="Order.ShipCountry" />
+                    <ValidationMessage For="() => Order.ShipCountry" />
+                </div>
+
+                <div class="col-md-4">
+                    <label for="shipPostalCode" class="form-label fw-bold">@CreateOrderMessages.ShipPostalCodeLabel</label>
+                    <InputText class="form-control" id="shipPostalCode" placeholder="@CreateOrderMessages.ShipPostalCodeLabel" @bind-Value="Order.ShipPostalCode" />
+                    <ValidationMessage For="() => Order.ShipPostalCode" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detalle de la Orden (Productos) -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-cart3 me-2"></i> Detalle de la Orden (Productos)</h5>
+            <button type="button" class="btn btn-light btn-sm text-success fw-bold shadow-sm" @onclick="OpenAddProductModal">
+                <i class="bi bi-plus-circle me-1"></i> Agregar Producto (Búsqueda)
+            </button>
+        </div>
+        <div class="card-body p-4">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle mb-3">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 25%;">ID Producto</th>
+                            <th style="width: 25%;">Precio Unitario ($)</th>
+                            <th style="width: 20%;">Cantidad</th>
+                            <th style="width: 20%;" class="text-end">Subtotal Neto</th>
+                            <th style="width: 10%;" class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Order.OrderDetails.Count; i++)
+                        {
+                            var index = i;
+                            var item = Order.OrderDetails[index];
+                            <tr>
+                                <td>
+                                    <div class="input-group">
+                                        <InputNumber class="form-control font-monospace" placeholder="ID" @bind-Value="item.ProductId" />
+                                        <!-- Requerimiento 11: Permitir actualizar/cambiar un producto por otro en la orden sin perder el resto de los datos -->
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" title="Cambiar Producto por otro del catálogo" @onclick="() => OpenReplaceProductModal(index)">
+                                            <i class="bi bi-arrow-repeat"></i>
+                                        </button>
+                                    </div>
+                                    <ValidationMessage For="() => item.ProductId" />
+                                </td>
+                                <td>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" step="0.01" class="form-control bg-light font-monospace" readonly value="@item.UnitPrice" />
+                                    </div>
+                                </td>
+                                <td>
+                                    <InputNumber class="form-control font-monospace" placeholder="Cantidad" @bind-Value="item.Quantity" />
+                                    <ValidationMessage For="() => item.Quantity" />
+                                </td>
+                                <td class="text-end fw-bold font-monospace fs-6 text-dark">
+                                    @((item.UnitPrice * item.Quantity).ToString("C"))
+                                </td>
+                                <td class="text-center">
+                                    @if (Order.OrderDetails.Count > 1)
+                                    {
+                                        <button type="button" class="btn btn-outline-danger btn-sm" @onclick="() => RemoveDetailItem(index)" title="Eliminar producto de la orden">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Totales e IVA (Requerimiento 4) -->
+            @{
+                var subtotalNeto = Order.OrderDetails.Sum(d => d.UnitPrice * d.Quantity);
+                var iva = subtotalNeto * 0.15m;
+                var totalConIva = subtotalNeto + iva;
+            }
+
+            <div class="row justify-content-end p-3 bg-light rounded border g-2">
+                <div class="col-md-6 d-flex align-items-center">
+                    <button type="button" class="btn btn-outline-primary me-2" @onclick="Order.AddNewOrderDetailItem">
+                        <i class="bi bi-plus-lg me-1"></i> @CreateOrderMessages.AddProductButtonText
+                    </button>
+                    <button type="button" class="btn btn-outline-success" @onclick="OpenAddProductModal">
+                        <i class="bi bi-search me-1"></i> Buscar Producto
+                    </button>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-0 bg-white shadow-sm p-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted fw-bold">Subtotal Neto:</span>
+                            <span class="fw-bold font-monospace">@subtotalNeto.ToString("C")</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1 text-muted">
+                            <span>IVA (15%):</span>
+                            <span class="font-monospace">@iva.ToString("C")</span>
+                        </div>
+                        <hr class="my-2" />
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fs-5 fw-bold text-dark">TOTAL GENERAL:</span>
+                            <span class="fs-4 fw-bold text-success font-monospace">@totalConIva.ToString("C")</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-grid gap-2 mb-4">
+        <button class="btn btn-primary btn-lg fw-bold py-3 shadow">
+            <i class="bi bi-check-circle-fill me-2"></i> @CreateOrderMessages.SendButtonText
+        </button>
+    </div>
+</EditForm>
+
+@if (!string.IsNullOrWhiteSpace(Order.InformationMessage))
+{
+    <div class="alert alert-info shadow-sm mt-3">
+        <i class="bi bi-info-circle me-2"></i> @Order.InformationMessage
+    </div>
+}
+
+<CustomerSearchModal @bind-IsOpen="IsCustomerModalOpen" OnCustomerSelected="OnCustomerSelectedHandler" />
+<ProductSearchModal @bind-IsOpen="IsProductModalOpen" OnProductSelected="OnProductSelectedHandler" />
+
+@code {
+    private bool IsCustomerModalOpen = false;
+    private bool IsProductModalOpen = false;
+    private string SelectedCustomerName = string.Empty;
+    private string DuplicateWarningMessage = string.Empty;
+    private int ReplacingItemIndex = -1; // -1 means add new, >= 0 means replacing row at index
+
+    private void OpenCustomerModal() => IsCustomerModalOpen = true;
+
+    private void OpenAddProductModal()
+    {
+        ReplacingItemIndex = -1;
+        IsProductModalOpen = true;
+    }
+
+    private void OpenReplaceProductModal(int index)
+    {
+        ReplacingItemIndex = index;
+        IsProductModalOpen = true;
+    }
+
+    private void OnCustomerSelectedHandler(CustomerItemViewModel customer)
+    {
+        Order.CustomerId = customer.Id;
+        SelectedCustomerName = $"{customer.Name} (ID: {customer.Id})";
+    }
+
+    private void OnProductSelectedHandler(ProductItemViewModel product)
+    {
+        DuplicateWarningMessage = string.Empty;
+
+        // Si se está cambiando un producto de una fila existente
+        if (ReplacingItemIndex >= 0 && ReplacingItemIndex < Order.OrderDetails.Count)
+        {
+            var target = Order.OrderDetails[ReplacingItemIndex];
+            target.ProductId = product.Id;
+            target.UnitPrice = product.UnitPrice;
+            ReplacingItemIndex = -1;
+            return;
+        }
+
+        // Requerimiento 3 & 11: Si el producto ya existe en la orden, se incrementa la cantidad en vez de duplicar
+        var existingDetail = Order.OrderDetails.FirstOrDefault(d => d.ProductId == product.Id);
+        if (existingDetail != null)
+        {
+            existingDetail.Quantity += 1;
+            DuplicateWarningMessage = $"El producto '{product.Name}' (ID #{product.Id}) ya estaba en la orden. Se actualizó su cantidad a {existingDetail.Quantity}.";
+            return;
+        }
+
+        // De lo contrario, buscar una fila vacía o agregar una nueva
+        var targetDetail = Order.OrderDetails.FirstOrDefault(d => d.ProductId == 0);
+        if (targetDetail == null)
+        {
+            Order.AddNewOrderDetailItem();
+            targetDetail = Order.OrderDetails.LastOrDefault();
+        }
+
+        if (targetDetail != null)
+        {
+            targetDetail.ProductId = product.Id;
+            targetDetail.UnitPrice = product.UnitPrice;
+            if (targetDetail.Quantity <= 0)
+            {
+                targetDetail.Quantity = 1;
+            }
+        }
+    }
+
+    private void RemoveDetailItem(int index)
+    {
+        if (index >= 0 && index < Order.OrderDetails.Count && Order.OrderDetails.Count > 1)
+        {
+            Order.OrderDetails.RemoveAt(index);
+        }
+    }
+}

@@ -1,0 +1,180 @@
+@using NorthWind.Sales.Frontend.BusinessObjects.Interfaces
+@using NorthWind.Sales.Frontend.BusinessObjects.ViewModels
+@inject ISearchCustomersGateway Gateway
+
+@if (IsOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-search me-2"></i> Búsqueda Inteligente de Clientes
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="input-group mb-3">
+                        <span class="input-group-text bg-light"><i class="bi bi-filter"></i></span>
+                        <input type="text" class="form-control form-control-lg" placeholder="Buscar por ID o Nombre de Cliente..."
+                               @bind="FilterText" @bind:event="oninput" @keyup="OnKeyUp" />
+                        <button class="btn btn-primary" type="button" @onclick="ExecuteSearch">Buscar</button>
+                    </div>
+
+                    @if (IsLoading)
+                    {
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Searching customers...</p>
+                        </div>
+                    }
+                    else if (Customers == null || !Customers.Any())
+                    {
+                        <div class="alert alert-warning text-center my-3">
+                            <i class="bi bi-exclamation-triangle me-2"></i> No customers found matching the search criteria.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive mb-3">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Customer / Company Name</th>
+                                        <th>Current Balance</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var customer in PaginatedCustomers)
+                                    {
+                                        <tr>
+                                            <td><span class="badge bg-secondary font-monospace">@customer.Id</span></td>
+                                            <td class="fw-bold">@customer.Name</td>
+                                            <td class="font-monospace text-dark">@customer.CurrentBalance.ToString("C")</td>
+                                            <td class="text-end">
+                                                <button class="btn btn-sm btn-success fw-bold" @onclick="() => SelectCustomer(customer)">
+                                                    <i class="bi bi-check-circle me-1"></i> Select
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Block Pagination -->
+                        <div class="d-flex justify-content-between align-items-center bg-light p-2 rounded border">
+                            <small class="text-muted">
+                                Showing @(Math.Min((CurrentPage - 1) * PageSize + 1, TotalItems)) to @(Math.Min(CurrentPage * PageSize, TotalItems)) of @TotalItems customers
+                            </small>
+                            <nav aria-label="Customer search block pagination">
+                                <ul class="pagination pagination-sm mb-0">
+                                    <li class="page-item @(CurrentPage == 1 ? "disabled" : "")">
+                                        <button class="page-item-link page-link" @onclick="PreviousPage">Previous</button>
+                                    </li>
+                                    @for (int p = 1; p <= TotalPages; p++)
+                                    {
+                                        var pageNumber = p;
+                                        <li class="page-item @(CurrentPage == pageNumber ? "active" : "")">
+                                            <button class="page-link" @onclick="() => GoToPage(pageNumber)">@pageNumber</button>
+                                        </li>
+                                    }
+                                    <li class="page-item @(CurrentPage == TotalPages || TotalPages == 0 ? "disabled" : "")">
+                                        <button class="page-link" @onclick="NextPage">Next</button>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" @onclick="Close">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public EventCallback<CustomerItemViewModel> OnCustomerSelected { get; set; }
+
+    private string FilterText = string.Empty;
+    private IEnumerable<CustomerItemViewModel> Customers = [];
+    private bool IsLoading = false;
+
+    // Block Pagination state
+    private int CurrentPage = 1;
+    private const int PageSize = 5;
+
+    private int TotalItems => Customers.Count();
+    private int TotalPages => (int)Math.Ceiling((double)TotalItems / PageSize);
+
+    private IEnumerable<CustomerItemViewModel> PaginatedCustomers =>
+        Customers.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && (!Customers.Any() || string.IsNullOrEmpty(FilterText)))
+        {
+            await ExecuteSearch();
+        }
+    }
+
+    private async Task OnKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await ExecuteSearch();
+        }
+    }
+
+    private async Task ExecuteSearch()
+    {
+        IsLoading = true;
+        CurrentPage = 1;
+        try
+        {
+            Customers = await Gateway.SearchCustomers(FilterText);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void GoToPage(int page)
+    {
+        if (page >= 1 && page <= TotalPages)
+        {
+            CurrentPage = page;
+        }
+    }
+
+    private void PreviousPage()
+    {
+        if (CurrentPage > 1) CurrentPage--;
+    }
+
+    private void NextPage()
+    {
+        if (CurrentPage < TotalPages) CurrentPage++;
+    }
+
+    private async Task SelectCustomer(CustomerItemViewModel customer)
+    {
+        await OnCustomerSelected.InvokeAsync(customer);
+        await Close();
+    }
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(IsOpen);
+    }
+}

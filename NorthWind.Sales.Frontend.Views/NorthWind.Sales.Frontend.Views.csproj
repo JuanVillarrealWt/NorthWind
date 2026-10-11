@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.12" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\NorthWind.Sales.Frontend.BusinessObjects\NorthWind.Sales.Frontend.BusinessObjects.csproj" />
+    <ProjectReference Include="..\NorthWind.RazorComponents\NorthWind.RazorComponents.csproj" />
+    <ProjectReference Include="..\NorthWind.Sales.Validators.Entities\NorthWind.Sales.Validators.Entities.csproj" />
+    <ProjectReference Include="..\NorthWind.ValidationService.FluentValidation\NorthWind.ValidationService.FluentValidation.csproj" />
+    <ProjectReference Include="..\NorthWind.Membership.Frontend.RazorViews\NorthWind.Membership.Frontend.RazorViews.csproj" />
+  </ItemGroup>
+</Project>

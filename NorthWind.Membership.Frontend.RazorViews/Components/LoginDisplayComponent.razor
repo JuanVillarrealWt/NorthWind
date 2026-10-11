@@ -1,0 +1,20 @@
+<AuthorizeView>
+    <Authorized Context="authenticationState">
+        @GetUserName(authenticationState)
+        <a href="/user/logout">@CommonMessages.CloseSessionText</a>
+    </Authorized>
+    <NotAuthorized>
+        <a href="/user/register">@CommonMessages.CreateAccountText</a>
+        <a href="/user/login">@CommonMessages.LoginText</a>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private static string GetUserName(AuthenticationState authenticationState) =>
+        authenticationState.User.Claims
+            .Where(claim => claim.Type == "FullName")
+            .Select(claim => claim.Value)
+            .FirstOrDefault()
+        ?? authenticationState.User.Identity?.Name
+        ?? string.Empty;
+}

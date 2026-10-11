@@ -1,0 +1,10 @@
+@page "/user/register"
+<ErrorBoundary @ref="ErrorBoundaryRef">
+    <ChildContent>
+        <UserRegistrationComponent ViewModel="ViewModel" />
+    </ChildContent>
+    <ErrorContent Context="exception">
+        <ExceptionDisplay Exception="exception" />
+        <button class="btn btn-danger" @onclick="Recover">@CommonMessages.OK</button>
+    </ErrorContent>
+</ErrorBoundary>

@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/EnterpriseBusinessRules/">
+    <Project Path="NorthWind.Result.Entities/NorthWind.Result.Entities.csproj" />
+    <Project Path="NorthWind.Membership.Entities/NorthWind.Membership.Entities.csproj" />
+  </Folder>
+  <Folder Name="/ApplicationBusinessRules/">
+    <Project Path="NorthWind.Membership.Backend.Core/NorthWind.Membership.Backend.Core.csproj" />
+  </Folder>
+  <Folder Name="/FrameworksAndDrivers/">
+    <Project Path="NorthWind.Membership.Backend.AspNetIdentity/NorthWind.Membership.Backend.AspNetIdentity.csproj" />
+    <Project Path="NorthWind.Membership.Frontend.RazorViews/NorthWind.Membership.Frontend.RazorViews.csproj" />
+  </Folder>
+</Solution>

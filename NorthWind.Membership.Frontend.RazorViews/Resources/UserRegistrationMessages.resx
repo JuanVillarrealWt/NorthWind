@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader><resheader name="version"><value>2.0</value></resheader>
+  <data name="ConfirmPasswordErrorMessage" xml:space="preserve"><value>La contraseña y la confirmación no coinciden.</value></data>
+  <data name="RegisteredUserMessage" xml:space="preserve"><value>Usuario registrado exitosamente.</value></data>
+  <data name="FirstNameLabel" xml:space="preserve"><value>Nombre</value></data>
+  <data name="LastNameLabel" xml:space="preserve"><value>Apellidos</value></data>
+  <data name="PasswordConfirmationLabel" xml:space="preserve"><value>Confirmar contraseña</value></data>
+  <data name="RegisterButtonText" xml:space="preserve"><value>Registrar</value></data>
+</root>

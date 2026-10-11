@@ -1,0 +1,58 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Aa]rtifacts/
+[Pp]ublish/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.slnLaunch.user
+
+# Rider / ReSharper
+.idea/
+*.sln.iml
+*.DotSettings.user
+
+# .NET tooling and test results
+.dotnet/
+TestResults/
+coverage/
+coverage.*
+*.coverage
+*.coveragexml
+
+# NuGet packages and local package feeds
+*.nupkg
+*.snupkg
+packages/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.orig
+
+# Local databases and generated database files
+*.mdf
+*.ldf
+*.db
+*.sqlite
+*.sqlite3
+
+# Local-only configuration overrides. Keep appsettings.json and launchSettings.json
+# under version control unless they contain credentials or machine-specific secrets.
+appsettings.*.local.json
+secrets*.json
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,13 @@
+namespace NorthWind.UserServices;
+
+internal sealed class UserService(IHttpContextAccessor contextAccessor) : IUserService
+{
+    public bool IsAuthenticated => contextAccessor.HttpContext?.User.Identity?.IsAuthenticated == true;
+
+    public string UserName => contextAccessor.HttpContext?.User.Identity?.Name ?? string.Empty;
+
+    public string FullName => contextAccessor.HttpContext?.User.Claims
+        .Where(claim => claim.Type == "FullName")
+        .Select(claim => claim.Value)
+        .FirstOrDefault() ?? string.Empty;
+}

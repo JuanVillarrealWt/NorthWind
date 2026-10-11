@@ -1,0 +1,13 @@
+using NorthWind.Result.Entities;
+using NorthWind.Validation.Entities.ValueObjects;
+using NorthWind.Membership.Entities.Dtos.UserRegistration;
+using NorthWind.Membership.Entities.Dtos.UserLogin;
+using NorthWind.Membership.Backend.Core.Dtos;
+
+namespace NorthWind.Membership.Backend.Core.Interfaces.Common;
+
+public interface IMembershipService
+{
+    Task<Result<IEnumerable<ValidationError>>> Register(UserRegistrationDto userData);
+    Task<UserDto?> GetUserByCredentials(UserCredentialsDto userData);
+}

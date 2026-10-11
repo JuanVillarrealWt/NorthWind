@@ -1,0 +1,242 @@
+@page "/products"
+@attribute [Authorize]
+@using NorthWind.Sales.Frontend.BusinessObjects.Interfaces
+@using NorthWind.Sales.Frontend.BusinessObjects.ViewModels
+@inject ISearchProductsGateway SearchGateway
+@inject IProductCrudGateway CrudGateway
+
+<PageTitle>Product Catalog Management - NorthWind</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-success mb-1">
+                <i class="bi bi-box-seam me-2"></i> Product Catalog Management
+            </h2>
+            <p class="text-muted mb-0">Create, update stock, edit pricing, or delete products directly in the system.</p>
+        </div>
+        <button class="btn btn-success btn-lg fw-bold shadow-sm" @onclick="OpenCreateModal">
+            <i class="bi bi-plus-circle-fill me-1"></i> Add New Product
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(StatusMessage))
+    {
+        <div class="alert alert-info alert-dismissible fade show shadow-sm mb-4" role="alert">
+            <i class="bi bi-info-circle-fill me-2"></i> @StatusMessage
+            <button type="button" class="btn-close" @onclick="() => StatusMessage = string.Empty"></button>
+        </div>
+    }
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4">
+            <div class="input-group">
+                <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control form-control-lg"
+                       placeholder="Filter product by ID or Name..."
+                       @bind="FilterText" @bind:event="oninput" @keyup="OnKeyUp" />
+                <button class="btn btn-outline-success fw-bold" @onclick="LoadProducts">Search</button>
+            </div>
+        </div>
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-success" role="status">
+                <span class="visually-hidden">Loading products...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading product catalog...</p>
+        </div>
+    }
+    else if (Products == null || !Products.Any())
+    {
+        <div class="card shadow-sm border-0 text-center py-5">
+            <div class="card-body">
+                <i class="bi bi-inbox text-muted display-4 mb-3 d-block"></i>
+                <h4 class="text-muted fw-bold">No products found</h4>
+                <p class="text-muted">Click "Add New Product" above to create a new item.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Product ID</th>
+                                <th>Product Name</th>
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-center">Units In Stock</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in Products)
+                            {
+                                <tr>
+                                    <td><span class="badge bg-secondary font-monospace fs-6">#@p.Id</span></td>
+                                    <td class="fw-bold">@p.Name</td>
+                                    <td class="text-end font-monospace text-success fw-bold fs-6">@p.UnitPrice.ToString("C")</td>
+                                    <td class="text-center font-monospace">
+                                        @if (p.UnitsInStock > 0)
+                                        {
+                                            <span class="badge bg-success fs-6">@p.UnitsInStock available</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger fs-6">Out of stock (0)</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        <button class="btn btn-outline-warning btn-sm me-2 fw-bold" @onclick="() => OpenEditModal(p)">
+                                            <i class="bi bi-pencil-square me-1"></i> Edit
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm fw-bold" @onclick="() => DeleteProduct(p.Id)">
+                                            <i class="bi bi-trash-fill me-1"></i> Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@if (IsModalOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.6);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold">
+                        <i class="bi bi-box-seam me-2"></i> @(IsEditing ? "Edit Product" : "Create Product")
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Product Name</label>
+                        <input type="text" class="form-control" @bind="CurrentProduct.Name" placeholder="e.g. Chai Tea" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Unit Price ($)</label>
+                        <input type="number" step="0.01" class="form-control" @bind="CurrentProduct.UnitPrice" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Units In Stock</label>
+                        <input type="number" class="form-control" @bind="CurrentProduct.UnitsInStock" />
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="btn btn-success fw-bold" @onclick="SaveProduct">Save Product</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string FilterText = string.Empty;
+    private IEnumerable<ProductItemViewModel> Products = [];
+    private bool IsLoading = false;
+    private bool IsModalOpen = false;
+    private bool IsEditing = false;
+    private ProductItemViewModel CurrentProduct = new();
+    private string StatusMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+    }
+
+    private async Task OnKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await LoadProducts();
+        }
+    }
+
+    private async Task LoadProducts()
+    {
+        IsLoading = true;
+        try
+        {
+            Products = await SearchGateway.SearchProducts(FilterText);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        IsEditing = false;
+        CurrentProduct = new ProductItemViewModel { Id = 0, Name = string.Empty, UnitPrice = 0, UnitsInStock = 10 };
+        IsModalOpen = true;
+    }
+
+    private void OpenEditModal(ProductItemViewModel product)
+    {
+        IsEditing = true;
+        CurrentProduct = new ProductItemViewModel { Id = product.Id, Name = product.Name, UnitPrice = product.UnitPrice, UnitsInStock = product.UnitsInStock };
+        IsModalOpen = true;
+    }
+
+    private void CloseModal()
+    {
+        IsModalOpen = false;
+    }
+
+    private async Task SaveProduct()
+    {
+        if (string.IsNullOrWhiteSpace(CurrentProduct.Name) || CurrentProduct.UnitPrice < 0)
+        {
+            StatusMessage = "Please enter a valid product name and non-negative unit price.";
+            return;
+        }
+
+        try
+        {
+            if (IsEditing)
+            {
+                await CrudGateway.UpdateProduct(CurrentProduct);
+                StatusMessage = $"Product '{CurrentProduct.Name}' updated successfully.";
+            }
+            else
+            {
+                await CrudGateway.CreateProduct(CurrentProduct);
+                StatusMessage = $"Product '{CurrentProduct.Name}' created successfully.";
+            }
+            IsModalOpen = false;
+            await LoadProducts();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error saving product: {ex.Message}";
+        }
+    }
+
+    private async Task DeleteProduct(int productId)
+    {
+        try
+        {
+            await CrudGateway.DeleteProduct(productId);
+            StatusMessage = $"Product #{productId} removed successfully.";
+            await LoadProducts();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error deleting product: {ex.Message}";
+        }
+    }
+}
