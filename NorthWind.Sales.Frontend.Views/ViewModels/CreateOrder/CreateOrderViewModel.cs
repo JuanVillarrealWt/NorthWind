@@ -1,43 +1,132 @@
+using NorthWind.RazorComponents.Formatting;
+using NorthWind.RazorComponents.Notifications;
+
 namespace NorthWind.Sales.Frontend.Views.ViewModels.CreateOrder;
 
-public class CreateOrderViewModel(ICreateOrderGateway gateway, IModelValidatorHub<CreateOrderViewModel> validator)
+public class CreateOrderViewModel(
+    ICreateOrderGateway gateway,
+    IModelValidatorHub<CreateOrderViewModel> validator,
+    AppNotificationService notifications)
 {
     public ModelValidator<CreateOrderViewModel> ModelValidatorComponentReference { get; set; } = default!;
     public IModelValidatorHub<CreateOrderViewModel> Validator => validator;
     public string CustomerId { get; set; } = string.Empty;
-    public string ShipAddress { get; set; } = string.Empty;
-    public string ShipCity { get; set; } = string.Empty;
-    public string ShipCountry { get; set; } = string.Empty;
-    public string ShipPostalCode { get; set; } = string.Empty;
+    public string CustomerName { get; set; } = string.Empty;
+    private string shipAddress = string.Empty;
+    private string shipCity = string.Empty;
+    private string shipCountry = string.Empty;
+    private string shipPostalCode = string.Empty;
+
+    public string ShipAddress
+    {
+        get => shipAddress;
+        set => shipAddress = TextInputNormalizer.NormalizeInitialCapital(value);
+    }
+
+    public string ShipCity
+    {
+        get => shipCity;
+        set => shipCity = TextInputNormalizer.NormalizeInitialCapital(value);
+    }
+
+    public string ShipCountry
+    {
+        get => shipCountry;
+        set => shipCountry = TextInputNormalizer.NormalizeInitialCapital(value);
+    }
+
+    public string ShipPostalCode
+    {
+        get => shipPostalCode;
+        set
+        {
+            var digits = TextInputNormalizer.KeepDigitsOnly(value);
+            shipPostalCode = digits.Length <= 6 ? digits : digits[..6];
+        }
+    }
     public List<CreateOrderDetailViewModel> OrderDetails { get; set; } = [];
-    public string InformationMessage { get; private set; } = string.Empty;
+    public OrderReceipt? CompletedReceipt { get; private set; }
 
     public void AddNewOrderDetailItem() => OrderDetails.Add(new CreateOrderDetailViewModel());
 
     public async Task Send()
     {
-        InformationMessage = string.Empty;
+        CompletedReceipt = null;
         try
         {
             var orderId = await gateway.CreateOrderAsync((CreateOrderDto)this);
-            InformationMessage = $"[Transacción Completada con Éxito] {string.Format(System.Globalization.CultureInfo.CurrentCulture, CreateOrderMessages.CreatedOrderTemplate, orderId)}";
+            var lines = OrderDetails
+                .Where(detail => detail.ProductId > 0)
+                .Select(detail => new OrderReceiptLine(
+                    detail.ProductId,
+                    string.IsNullOrWhiteSpace(detail.ProductName) ? $"Producto #{detail.ProductId}" : detail.ProductName,
+                    detail.Quantity,
+                    detail.UnitPrice))
+                .ToList();
+            CompletedReceipt = new OrderReceipt(
+                orderId,
+                CustomerId,
+                string.IsNullOrWhiteSpace(CustomerName) ? CustomerId : CustomerName,
+                DateTime.Now,
+                ShipAddress,
+                ShipCity,
+                ShipCountry,
+                ShipPostalCode,
+                lines);
         }
         catch (HttpRequestException exception)
         {
             if (exception.Data["Errors"] is IEnumerable<ValidationError> errors)
             {
-                ModelValidatorComponentReference.AddErrors(errors);
-                InformationMessage = "[Transacción Fallida] Se encontraron errores de validación. La transacción no se realizó.";
+                var errorMessages = errors.Select(error => error.Message).Where(message => !string.IsNullOrWhiteSpace(message)).Distinct().ToArray();
+                var message = string.Join(" ", errorMessages);
+                var hasStockError = message.Contains("existencias", StringComparison.OrdinalIgnoreCase)
+                    || message.Contains("stock", StringComparison.OrdinalIgnoreCase);
+                var hasCustomerError = message.Contains("cliente", StringComparison.OrdinalIgnoreCase)
+                    && message.Contains("no existe", StringComparison.OrdinalIgnoreCase);
+                var hasDebtError = message.Contains("adeudo", StringComparison.OrdinalIgnoreCase)
+                    || message.Contains("deuda", StringComparison.OrdinalIgnoreCase);
+                notifications.ShowError(
+                    "No se pudo crear la factura",
+                    message.Length == 0 ? "Revisa los datos ingresados." : message,
+                    hasStockError
+                        ? "Reduce la cantidad solicitada o elige otro producto con existencias suficientes."
+                        : hasDebtError
+                            ? "Selecciona un cliente sin adeudos pendientes o registra el pago de la deuda antes de crear la factura."
+                        : hasCustomerError
+                            ? "Verifica el ID o registra al cliente antes de crear la factura."
+                            : "Corrige los datos señalados y vuelve a intentar.");
             }
             else
             {
-                InformationMessage = "[Transacción Fallida] Error de comunicación o concurrencia. La transacción fue revertida en el servidor.";
+                notifications.ShowError(
+                    "No se pudo crear la factura",
+                    exception.StatusCode is null
+                        ? "No fue posible comunicarse con el servidor."
+                        : "El servidor rechazó la solicitud o detectó un conflicto al guardar.",
+                    "Comprueba tu conexión y los datos de la orden; después vuelve a intentarlo.");
             }
         }
         catch (Exception)
         {
-            InformationMessage = "[Transacción Fallida] Ocurrió un error al procesar la orden. La transacción fue cancelada y los cambios revertidos.";
+            notifications.ShowError(
+                "No se pudo crear la factura",
+                "Ocurrió un problema inesperado al procesar la orden.",
+                "Verifica los datos e inténtalo de nuevo. Si el problema continúa, comunícate con soporte.");
         }
+    }
+
+    public void Reset()
+    {
+        CustomerId = string.Empty;
+        CustomerName = string.Empty;
+        ShipAddress = string.Empty;
+        ShipCity = string.Empty;
+        ShipCountry = string.Empty;
+        ShipPostalCode = string.Empty;
+        OrderDetails = [new CreateOrderDetailViewModel()];
+        CompletedReceipt = null;
+        ModelValidatorComponentReference?.ClearErrors();
     }
 
     public static explicit operator CreateOrderDto(CreateOrderViewModel model) =>
@@ -51,4 +140,25 @@ public class CreateOrderViewModel(ICreateOrderGateway gateway, IModelValidatorHu
                 detail.ProductId,
                 detail.UnitPrice,
                 detail.Quantity)));
+}
+
+public sealed record OrderReceipt(
+    int OrderId,
+    string CustomerId,
+    string CustomerName,
+    DateTime CreatedAt,
+    string ShipAddress,
+    string ShipCity,
+    string ShipCountry,
+    string ShipPostalCode,
+    IReadOnlyList<OrderReceiptLine> Lines)
+{
+    public decimal Subtotal => Lines.Sum(line => line.Subtotal);
+    public decimal Tax => Subtotal * 0.15m;
+    public decimal Total => Subtotal + Tax;
+}
+
+public sealed record OrderReceiptLine(int ProductId, string ProductName, short Quantity, decimal UnitPrice)
+{
+    public decimal Subtotal => UnitPrice * Quantity;
 }

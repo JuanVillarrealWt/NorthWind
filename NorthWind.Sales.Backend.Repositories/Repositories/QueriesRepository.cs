@@ -8,7 +8,12 @@ internal sealed class QueriesRepository(INorthWindSalesQueriesDataContext contex
 {
     public async Task<decimal?> GetCustomerCurrentBalance(string customerId)
     {
-        var result = await context.FirstOrDefaultAsync(context.Customers.Where(c => c.Id == customerId).Select(c => c.CurrentBalance));
+        // Keep the projection nullable so FirstOrDefaultAsync can distinguish
+        // a missing customer from an existing customer whose balance is zero.
+        var result = await context.FirstOrDefaultAsync(
+            context.Customers
+                .Where(c => c.Id == customerId)
+                .Select(c => (decimal?)c.CurrentBalance));
         return result;
     }
 

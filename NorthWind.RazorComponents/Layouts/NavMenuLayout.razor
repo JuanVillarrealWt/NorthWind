@@ -1,5 +1,7 @@
 @inherits LayoutComponentBase
 
+<NotificationHost />
+
 <div class="page">
     <div class="sidebar">
         <NavMenu>
@@ -9,7 +11,15 @@
     </div>
     <main>
         <div class="top-row px-4"><SectionOutlet SectionId="@HeaderSection" /></div>
-        <article class="content px-4">@Body</article>
+        <article class="content px-4">
+            <ErrorBoundary @ref="ErrorBoundaryRef">
+                <ChildContent>@Body</ChildContent>
+                <ErrorContent Context="exception">
+                    <ExceptionDisplay Exception="exception" />
+                    <button class="btn btn-outline-secondary" @onclick="Recover">Volver a intentar</button>
+                </ErrorContent>
+            </ErrorBoundary>
+        </article>
     </main>
 </div>
 
@@ -17,4 +27,7 @@
     public static object NavBarBrandSection = new();
     public static object NavBarItemsSection = new();
     public static object HeaderSection = new();
+    private ErrorBoundary? ErrorBoundaryRef;
+
+    private void Recover() => ErrorBoundaryRef?.Recover();
 }

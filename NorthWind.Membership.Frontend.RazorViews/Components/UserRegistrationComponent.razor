@@ -1,30 +1,24 @@
 <EditForm Model="ViewModel" OnValidSubmit="ViewModel.Register">
     <ModelValidator T="UserRegistrationViewModel" Validator="ViewModel.Validator" @ref="ViewModel.ModelValidatorComponentReference" />
-    <ValidationSummary />
     <div class="form-group">
         <label for="firstName">@UserRegistrationMessages.FirstNameLabel</label>
-        <InputText class="form-control" id="firstName" placeholder="@UserRegistrationMessages.FirstNameLabel" @bind-Value="ViewModel.FirstName" />
-        <ValidationMessage For="() => ViewModel.FirstName" />
+        <input class="form-control" id="firstName" placeholder="@UserRegistrationMessages.FirstNameLabel" data-trim-leading="true" value="@ViewModel.FirstName" @oninput="args => ViewModel.FirstName = args.Value?.ToString() ?? string.Empty" />
     </div>
     <div class="form-group">
         <label for="lastName">@UserRegistrationMessages.LastNameLabel</label>
-        <InputText class="form-control" id="lastName" placeholder="@UserRegistrationMessages.LastNameLabel" @bind-Value="ViewModel.LastName" />
-        <ValidationMessage For="() => ViewModel.LastName" />
+        <input class="form-control" id="lastName" placeholder="@UserRegistrationMessages.LastNameLabel" data-trim-leading="true" value="@ViewModel.LastName" @oninput="args => ViewModel.LastName = args.Value?.ToString() ?? string.Empty" />
     </div>
     <div class="form-group">
         <label for="email">@CommonMessages.EmailLabel</label>
         <InputText class="form-control" id="email" placeholder="@CommonMessages.EmailLabel" @bind-Value="ViewModel.Email" />
-        <ValidationMessage For="() => ViewModel.Email" />
     </div>
     <div class="form-group">
         <label for="password">@CommonMessages.PasswordLabel</label>
         <InputText class="form-control" id="password" type="password" placeholder="@CommonMessages.PasswordLabel" @bind-Value="ViewModel.Password" />
-        <ValidationMessage For="() => ViewModel.Password" />
     </div>
     <div class="form-group">
         <label for="passwordConfirmation">@UserRegistrationMessages.PasswordConfirmationLabel</label>
         <InputText class="form-control" id="passwordConfirmation" type="password" placeholder="@UserRegistrationMessages.PasswordConfirmationLabel" @bind-Value="ViewModel.PasswordConfirmation" />
-        <ValidationMessage For="() => ViewModel.PasswordConfirmation" />
     </div>
     <div class="row p-3"><div class="col"><button class="btn btn-primary">@UserRegistrationMessages.RegisterButtonText</button></div></div>
 </EditForm>

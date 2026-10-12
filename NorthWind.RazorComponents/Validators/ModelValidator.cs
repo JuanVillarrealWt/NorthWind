@@ -1,6 +1,8 @@
 namespace NorthWind.RazorComponents.Validators;
+using NorthWind.RazorComponents.Notifications;
 public sealed class ModelValidator<T> : ComponentBase, IDisposable
 {
+ [Inject] private AppNotificationService Notifications { get; set; } = default!;
  [CascadingParameter] private EditContext? EditContext { get; set; }
  [Parameter, EditorRequired] public IModelValidatorHub<T> Validator { get; set; } = default!;
  private ValidationMessageStore? messageStore;
@@ -18,7 +20,17 @@ public sealed class ModelValidator<T> : ComponentBase, IDisposable
  private async void ValidationRequested(object? sender,ValidationRequestedEventArgs args)
  {
   if(subscribedContext is null || messageStore is null) return;
-  if(await Validator.Validate((T)subscribedContext.Model)) messageStore.Clear(); else AddErrors(Validator.Errors);
+  if(await Validator.Validate((T)subscribedContext.Model)) messageStore.Clear();
+  else
+  {
+   var errors=Validator.Errors.ToArray();
+   AddErrors(errors);
+   var message=string.Join(" ",errors.Select(error=>error.Message).Where(value=>!string.IsNullOrWhiteSpace(value)).Distinct());
+   Notifications.ShowError(
+    "Revisa los datos del formulario",
+    string.IsNullOrWhiteSpace(message)?"Hay datos que necesitan corrección.":message,
+    "Corrige la información ingresada e inténtalo nuevamente.");
+  }
   subscribedContext.NotifyValidationStateChanged();
  }
  private async void FieldChanged(object? sender,FieldChangedEventArgs args)
@@ -38,6 +50,12 @@ public sealed class ModelValidator<T> : ComponentBase, IDisposable
   if(subscribedContext is null || messageStore is null) return;
   messageStore.Clear();
   foreach(var error in errors) messageStore.Add(GetFieldIdentifier(subscribedContext.Model,error.PropertyName),error.Message);
+  subscribedContext.NotifyValidationStateChanged();
+ }
+ public void ClearErrors()
+ {
+  if(subscribedContext is null || messageStore is null) return;
+  messageStore.Clear();
   subscribedContext.NotifyValidationStateChanged();
  }
  private static FieldIdentifier GetFieldIdentifier(object model,string path)

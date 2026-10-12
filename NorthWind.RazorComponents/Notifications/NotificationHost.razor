@@ -1,0 +1,104 @@
+@implements IDisposable
+@inject AppNotificationService Notifications
+
+<div class="app-notification-stack" aria-live="assertive">
+    @foreach (var entry in notificationEntries)
+    {
+        <aside @key="entry" class="app-notification @GetSeverityClass(entry.Notification.Severity)" role="alert"
+               @onmouseenter="() => ResetDismissal(entry)" @onmouseleave="() => StartDismissal(entry)">
+            <div class="app-notification-icon"><i class="@GetIcon(entry.Notification.Severity)"></i></div>
+            <div class="app-notification-content">
+                <div class="app-notification-title">@entry.Notification.Title</div>
+                <div class="app-notification-message">@entry.Notification.Message</div>
+                <div class="app-notification-solution"><strong>Qué puedes hacer:</strong> @entry.Notification.Solution</div>
+            </div>
+            <button type="button" class="app-notification-close" aria-label="Cerrar aviso" @onclick="() => Dismiss(entry)">×</button>
+        </aside>
+    }
+</div>
+
+@code {
+    private readonly List<NotificationEntry> notificationEntries = [];
+
+    protected override void OnInitialized() => Notifications.NotificationRaised += OnNotification;
+
+    private void OnNotification(AppNotification notification)
+    {
+        _ = InvokeAsync(() =>
+        {
+            var entry = new NotificationEntry(notification);
+            notificationEntries.Insert(0, entry);
+            StartDismissal(entry);
+            StateHasChanged();
+        });
+    }
+
+    private void ResetDismissal(NotificationEntry entry)
+    {
+        entry.IsPointerOver = true;
+        entry.Dismissal?.Cancel();
+    }
+
+    private void StartDismissal(NotificationEntry entry)
+    {
+        entry.IsPointerOver = false;
+        entry.Dismissal?.Cancel();
+        entry.Dismissal?.Dispose();
+        entry.Dismissal = new CancellationTokenSource();
+        _ = DismissAfterDelay(entry, entry.Dismissal.Token);
+    }
+
+    private async Task DismissAfterDelay(NotificationEntry entry, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+            await InvokeAsync(() =>
+            {
+                if (entry.IsPointerOver) return;
+                notificationEntries.Remove(entry);
+                entry.Dismissal?.Dispose();
+                StateHasChanged();
+            });
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private void Dismiss(NotificationEntry entry)
+    {
+        entry.Dismissal?.Cancel();
+        entry.Dismissal?.Dispose();
+        notificationEntries.Remove(entry);
+    }
+
+    private static string GetSeverityClass(AppNotificationSeverity severity) => severity switch
+    {
+        AppNotificationSeverity.Warning => "app-notification--warning",
+        AppNotificationSeverity.Info => "app-notification--info",
+        _ => string.Empty
+    };
+
+    private static string GetIcon(AppNotificationSeverity severity) => severity switch
+    {
+        AppNotificationSeverity.Warning => "bi bi-exclamation-triangle-fill",
+        AppNotificationSeverity.Info => "bi bi-info-circle-fill",
+        _ => "bi bi-exclamation-circle-fill"
+    };
+
+    public void Dispose()
+    {
+        Notifications.NotificationRaised -= OnNotification;
+        foreach (var entry in notificationEntries)
+        {
+            entry.Dismissal?.Cancel();
+            entry.Dismissal?.Dispose();
+        }
+    }
+
+    private sealed class NotificationEntry(AppNotification notification)
+    {
+        public AppNotification Notification { get; } = notification;
+        public CancellationTokenSource? Dismissal { get; set; }
+        public bool IsPointerOver { get; set; }
+    }
+}

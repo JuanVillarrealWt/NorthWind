@@ -1,8 +1,19 @@
-<div class="main alert alert-danger">
-    <div>Ocurrió un error inesperado. Inténtalo de nuevo.</div>
-</div>
-
 @code {
     [Parameter]
     public Exception Exception { get; set; } = default!;
+
+    [Inject]
+    private AppNotificationService Notifications { get; set; } = default!;
+
+    private Exception? lastDisplayedException;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(lastDisplayedException, Exception)) return;
+        lastDisplayedException = Exception;
+        Notifications.ShowError(
+            "Ocurrió un error",
+            "No se pudo completar esta acción por un problema inesperado.",
+            "Vuelve a intentarlo. Si el problema continúa, actualiza la página o comunícate con soporte.");
+    }
 }

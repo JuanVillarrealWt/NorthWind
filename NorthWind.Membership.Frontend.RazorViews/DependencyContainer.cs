@@ -4,6 +4,7 @@ public static class MembershipFrontendDependencyContainer
 {
     public static IServiceCollection AddMembershipServices(this IServiceCollection services, Action<HttpClient> configureHttpClient)
     {
+        services.AddAppNotifications();
         services.AddExceptionDelegatingHandler();
         services.AddHttpClient<MembershipGateway>(configureHttpClient)
             .AddHttpMessageHandler<ExceptionDelegatingHandler>();

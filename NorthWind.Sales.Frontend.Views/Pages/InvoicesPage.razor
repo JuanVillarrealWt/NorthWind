@@ -129,9 +129,9 @@
 
 @if (SelectedInvoice != null)
 {
-    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.6);">
+    <div class="modal fade show d-block invoice-print-backdrop" tabindex="-1" style="background-color: rgba(0,0,0,0.6);">
         <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content shadow-lg border-0">
+            <div class="modal-content invoice-print-area shadow-lg border-0">
                 <div class="modal-header bg-dark text-white p-4">
                     <div>
                         <h4 class="modal-title fw-bold mb-0">
@@ -207,8 +207,8 @@
                     </div>
                 </div>
                 <div class="modal-footer bg-light d-flex justify-content-between">
-                    <button type="button" class="btn btn-primary fw-bold shadow-sm" @onclick="PrintInvoice">
-                        <i class="bi bi-printer-fill me-1"></i> Imprimir / descargar PDF
+                    <button type="button" class="btn btn-primary fw-bold shadow-sm" @onclick="SaveInvoiceAsPdf">
+                        <i class="bi bi-file-earmark-pdf me-1"></i> Guardar como PDF
                     </button>
                     <button type="button" class="btn btn-secondary fw-bold" @onclick="CloseInvoiceModal">
                         <i class="bi bi-x-lg me-1"></i> Cerrar
@@ -322,7 +322,7 @@
         SelectedInvoice = null;
     }
 
-    private async Task PrintInvoice()
+    private async Task SaveInvoiceAsPdf()
     {
         await JSRuntime.InvokeVoidAsync("window.print");
     }

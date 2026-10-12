@@ -20,7 +20,7 @@
                             <option value="Id">ID del producto</option>
                             <option value="Name">Nombre</option>
                         </select>
-                        <input type="text" class="form-control form-control-lg" inputmode="@(FilterField == "Id" ? "numeric" : null)"
+                        <input type="text" class="form-control form-control-lg" inputmode="@(FilterField == "Id" ? "numeric" : null)" maxlength="@(FilterField == "Id" ? 5 : null)" data-numeric-only="@(FilterField == "Id" ? "true" : null)"
                                placeholder="@(FilterField == "Id" ? "ID numérico" : "Nombre del producto")"
                                value="@FilterText" @oninput="OnFilterInput" @onkeyup="OnKeyUp" />
                         <button class="btn btn-success" type="button" @onclick="SearchImmediately">Buscar</button>
@@ -60,7 +60,7 @@
                                         <tr>
                                             <td><span class="badge bg-secondary font-monospace">@product.Id</span></td>
                                             <td class="fw-bold">@product.Name</td>
-                                            <td class="text-success font-monospace">@product.UnitPrice.ToString("C")</td>
+                                            <td class="text-success font-monospace">@CurrencyFormatter.Format(product.UnitPrice)</td>
                                             <td>
                                                 @if (product.UnitsInStock > 0)
                                                 {

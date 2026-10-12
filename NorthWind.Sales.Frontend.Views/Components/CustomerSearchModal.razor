@@ -59,7 +59,7 @@
                                         <tr>
                                             <td><span class="badge bg-secondary font-monospace">@customer.Id</span></td>
                                             <td class="fw-bold">@customer.Name</td>
-                                            <td class="font-monospace text-dark">@customer.CurrentBalance.ToString("C")</td>
+                                            <td class="font-monospace text-dark">@CurrencyFormatter.Format(customer.CurrentBalance)</td>
                                             <td class="text-end">
                                                 <button class="btn btn-sm btn-success fw-bold" @onclick="() => SelectCustomer(customer)">
                                                     <i class="bi bi-check-circle me-1"></i> Seleccionar
