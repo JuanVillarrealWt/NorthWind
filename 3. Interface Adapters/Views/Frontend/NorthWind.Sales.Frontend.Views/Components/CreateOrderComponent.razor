@@ -1,0 +1,505 @@
+@using NorthWind.Sales.Frontend.BusinessObjects.ViewModels
+@using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Components.Authorization
+@inject IJSRuntime JSRuntime
+@inject AppNotificationService Notifications
+@inject AuthenticationStateProvider AuthStateProvider
+<EditForm Model="Order" OnValidSubmit="SubmitOrder">
+    <ModelValidator T="CreateOrderViewModel" Validator="Order.Validator" @ref="Order.ModelValidatorComponentReference" />
+
+    <!-- Encabezado de la Orden (Maestro) -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-primary text-white d-flex align-items-center">
+            <i class="bi bi-person-lines-fill me-2 fs-5"></i>
+            <h5 class="mb-0 fw-bold">Encabezado de la Orden (Datos del Cliente)</h5>
+        </div>
+        <div class="card-body p-4">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="customerId" class="form-label fw-bold">@CreateOrderMessages.CustomerIdLabel</label>
+                    <div class="input-group">
+                        <InputText class="form-control" id="customerId" maxlength="5" placeholder="@CreateOrderMessages.CustomerIdLabel" @bind-Value="Order.CustomerId" @bind-Value:after="ClearCustomerSelection" />
+                        <button type="button" class="btn btn-outline-primary fw-bold" @onclick="OpenCustomerModal">
+                            <i class="bi bi-search me-1"></i> Búsqueda Inteligente
+                        </button>
+                    </div>
+                    @if (!string.IsNullOrEmpty(SelectedCustomerName))
+                    {
+                        <div class="form-text text-success fw-bold mt-1">
+                            <i class="bi bi-check-circle-fill me-1"></i> @SelectedCustomerName
+                        </div>
+                    }
+                </div>
+
+                <div class="col-md-6">
+                    <label for="shipAddress" class="form-label fw-bold">@CreateOrderMessages.ShipAddressLabel</label>
+                    <input class="form-control" id="shipAddress" placeholder="@CreateOrderMessages.ShipAddressLabel" data-trim-leading="true" value="@Order.ShipAddress" @oninput="args => Order.ShipAddress = args.Value?.ToString() ?? string.Empty" />
+                </div>
+
+                <div class="col-md-4">
+                    <label for="shipCity" class="form-label fw-bold">@CreateOrderMessages.ShipCityLabel</label>
+                    <input class="form-control" id="shipCity" placeholder="@CreateOrderMessages.ShipCityLabel" data-trim-leading="true" value="@Order.ShipCity" @oninput="args => Order.ShipCity = args.Value?.ToString() ?? string.Empty" />
+                </div>
+
+                <div class="col-md-4">
+                    <label for="shipCountry" class="form-label fw-bold">@CreateOrderMessages.ShipCountryLabel</label>
+                    <input class="form-control" id="shipCountry" placeholder="@CreateOrderMessages.ShipCountryLabel" data-trim-leading="true" value="@Order.ShipCountry" @oninput="args => Order.ShipCountry = args.Value?.ToString() ?? string.Empty" />
+                </div>
+
+                <div class="col-md-4">
+                    <label for="shipPostalCode" class="form-label fw-bold">@CreateOrderMessages.ShipPostalCodeLabel</label>
+                    <input class="form-control" id="shipPostalCode" inputmode="numeric" maxlength="6" placeholder="@CreateOrderMessages.ShipPostalCodeLabel" data-numeric-only="true" value="@Order.ShipPostalCode" @oninput="args => Order.ShipPostalCode = args.Value?.ToString() ?? string.Empty" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detalle de la Orden (Productos) -->
+    <div class="card shadow-sm mb-4 border-0">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-cart3 me-2"></i> Detalle de la Orden (Productos)</h5>
+        </div>
+        <div class="card-body p-4">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle mb-3">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 12%;">ID Producto</th>
+                            <th style="width: 28%;">Producto</th>
+                            <th style="width: 17%;">Precio Unitario ($)</th>
+                            <th style="width: 15%;">Cantidad</th>
+                            <th style="width: 18%;" class="text-end">Subtotal Neto</th>
+                            <th style="width: 10%;" class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Order.OrderDetails.Count; i++)
+                        {
+                            var index = i;
+                            var item = Order.OrderDetails[index];
+                            <tr>
+                                <td>
+                                    <div class="input-group">
+                                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" data-numeric-only="true" data-minimum="0"
+                                               class="form-control font-monospace" placeholder="ID"
+                                               value="@item.ProductIdInput"
+                                               @oninput="args => item.ProductIdInput = args.Value?.ToString() ?? string.Empty" />
+                                        <!-- Requerimiento 11: Permitir actualizar/cambiar un producto por otro en la orden sin perder el resto de los datos -->
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" title="Cambiar Producto por otro del catálogo" @onclick="() => OpenReplaceProductModal(index)">
+                                            <i class="bi bi-arrow-repeat"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td class="fw-semibold">@(string.IsNullOrWhiteSpace(item.ProductName) ? "Sin seleccionar" : item.ProductName)</td>
+                                <td>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" step="0.01" class="form-control bg-light font-monospace" readonly value="@item.UnitPriceInput" />
+                                    </div>
+                                </td>
+                                <td>
+                                    <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" data-numeric-only="true" data-minimum="1"
+                                           class="form-control font-monospace" placeholder="Cantidad"
+                                           value="@item.QuantityInput"
+                                           @oninput="args => item.QuantityInput = args.Value?.ToString() ?? string.Empty" />
+                                </td>
+                                <td class="text-end fw-bold font-monospace fs-6 text-dark">
+                                    @CurrencyFormatter.Format(item.UnitPrice * item.Quantity)
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-outline-danger btn-sm d-inline-flex align-items-center justify-content-center" @onclick="() => RequestRemoveDetailItem(index)" title="Eliminar producto de la orden">
+                                        <span class="delete-action-x" aria-hidden="true">×</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Totales e IVA (Requerimiento 4) -->
+            @{
+                var subtotalNeto = Order.OrderDetails.Sum(d => d.UnitPrice * d.Quantity);
+                var iva = subtotalNeto * 0.15m;
+                var totalConIva = subtotalNeto + iva;
+            }
+
+            <div class="row justify-content-end p-3 bg-light rounded border g-2">
+                <div class="col-md-6 d-flex align-items-center">
+                    <button type="button" class="btn btn-outline-primary me-2" @onclick="Order.AddNewOrderDetailItem">
+                        <i class="bi bi-plus-lg me-1"></i> @CreateOrderMessages.AddProductButtonText
+                    </button>
+                    <button type="button" class="btn btn-outline-success" @onclick="OpenAddProductModal">
+                        <i class="bi bi-search me-1"></i> Buscar Producto
+                    </button>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-0 bg-white shadow-sm p-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="text-muted fw-bold">Subtotal Neto:</span>
+                            <span class="fw-bold font-monospace">@CurrencyFormatter.Format(subtotalNeto)</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-1 text-muted">
+                            <span>IVA (15%):</span>
+                            <span class="font-monospace">@CurrencyFormatter.Format(iva)</span>
+                        </div>
+                        <hr class="my-2" />
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fs-5 fw-bold text-dark">TOTAL GENERAL:</span>
+                            <span class="fs-4 fw-bold text-success font-monospace">@CurrencyFormatter.Format(totalConIva)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-grid gap-2 mb-4">
+        <button class="btn btn-primary btn-lg fw-bold py-3 shadow">
+            <i class="bi bi-check-circle-fill me-2"></i> @CreateOrderMessages.SendButtonText
+        </button>
+    </div>
+</EditForm>
+
+@if (PendingRemoveIndex >= 0 && PendingRemoveIndex < Order.OrderDetails.Count)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.55);" role="dialog" aria-modal="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content shadow border-0">
+                <div class="modal-body text-center p-4">
+                    <i class="bi bi-exclamation-triangle text-warning display-5"></i>
+                    <h5 class="fw-bold mt-3">¿Quitar producto?</h5>
+                    <p class="text-muted mb-4">¿Seguro que deseas quitar este producto de la orden?</p>
+                    <button class="btn btn-light me-2" @onclick="CancelRemoveDetailItem">Cancelar</button>
+                    <button class="btn btn-danger" @onclick="ConfirmRemoveDetailItem">Sí, quitar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (IsReceiptOpen && Order.CompletedReceipt is { } receipt)
+{
+    <div class="modal fade show d-block receipt-modal-backdrop" tabindex="-1" role="dialog" aria-modal="true" style="background-color: rgba(0,0,0,0.65);">
+        <div class="modal-dialog modal-dialog-centered modal-xl modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-dark text-white p-3 receipt-print-actions">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-check-circle-fill fs-3 me-2"></i>
+                        <div>
+                            <h5 class="modal-title fw-bold mb-0">¡Compra Realizada con Éxito!</h5>
+                            <small class="text-white-50">La orden ha sido registrada. La factura se generó con éxito.</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white receipt-close-button" aria-label="Cerrar" @onclick="AcceptReceipt"></button>
+                </div>
+
+                <div class="modal-body p-4 bg-light">
+                    <!-- HOJA DE FACTURA REAL PROFESIONAL -->
+                    <div id="invoice-real-sheet" class="real-invoice-sheet bg-white">
+                        <!-- Encabezado Superior: Establecimiento y Caja de Factura -->
+                        <div class="row align-items-center mb-4 pb-3 border-bottom">
+                            <div class="col-sm-7 mb-3 mb-sm-0">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-2 text-primary fs-2">
+                                        <i class="bi bi-shop"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="invoice-brand-title mb-0">Ventas NorthWind</h3>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-sm-5 text-sm-end">
+                                <div class="invoice-badge-card ms-sm-auto">
+                                    <div class="invoice-badge-label">FACTURA ELECTRÓNICA DE VENTA</div>
+                                    <div class="invoice-badge-num">N° FAC-@receipt.OrderId.ToString("D6")</div>
+                                    <div class="small text-muted mb-1">
+                                        <strong>Fecha de Emisión:</strong> @receipt.CreatedAt.ToString("dd/MM/yyyy HH:mm:ss")
+                                    </div>
+                                    <div>
+                                        <span class="badge bg-success text-white px-2 py-1 fw-bold">
+                                            <i class="bi bi-patch-check-fill me-1"></i>PAGADA
+                                        </span>
+                                        <span class="badge bg-light text-dark border ms-1">CONTADO</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cajas Informativas: Cliente y Vendedor/Transacción -->
+                        <div class="row g-3 mb-4">
+                            <!-- Datos del Cliente -->
+                            <div class="col-md-6">
+                                <div class="invoice-section-box">
+                                    <div class="invoice-section-title">
+                                        <i class="bi bi-person-badge me-1"></i> Datos del Cliente (Adquiriente)
+                                    </div>
+                                    <div class="invoice-field-row">
+                                        <span class="invoice-field-label">Cliente:</span>
+                                        <strong class="text-dark">@receipt.CustomerName</strong>
+                                    </div>
+                                    <div class="invoice-field-row">
+                                        <span class="invoice-field-label">ID / RUC / CC:</span>
+                                        <span class="badge bg-secondary font-monospace">@receipt.CustomerId</span>
+                                    </div>
+                                    <div class="invoice-field-row">
+                                        <span class="invoice-field-label">Dirección:</span>
+                                        <span>@receipt.ShipAddress</span>
+                                    </div>
+                                    <div class="invoice-field-row">
+                                        <span class="invoice-field-label">Ciudad / País:</span>
+                                        <span>@receipt.ShipCity, @receipt.ShipCountry</span>
+                                    </div>
+                                    <div class="invoice-field-row">
+                                        <span class="invoice-field-label">Cód. Postal:</span>
+                                        <span>@(string.IsNullOrWhiteSpace(receipt.ShipPostalCode) ? "N/A" : receipt.ShipPostalCode)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Datos del Vendedor y la Venta -->
+                            <div class="col-md-6">
+                                <div class="invoice-section-box">
+                                    <div class="invoice-section-title">
+                                        <i class="bi bi-briefcase me-1"></i> Información de Venta y Emisión
+                                    </div>
+                                    <div class="invoice-field-row">
+                                        <span class="invoice-field-label">Vendedor:</span>
+                                        <strong class="text-primary fs-6">
+                                            <i class="bi bi-person-check-fill me-1"></i>@receipt.SalespersonName
+                                        </strong>
+                                    </div>
+                                    <div class="invoice-field-row">
+                                        <span class="invoice-field-label">Moneda:</span>
+                                        <span>Dólares Americanos (USD)</span>
+                                    </div>
+                                    <div class="invoice-field-row">
+                                        <span class="invoice-field-label">Estado:</span>
+                                        <span class="text-success fw-bold">Transacción Aprobada</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detalle de Productos -->
+                        <div class="table-responsive">
+                            <table class="invoice-table table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 8%;" class="text-center">#</th>
+                                        <th style="width: 14%;">CÓDIGO</th>
+                                        <th style="width: 40%;">DESCRIPCIÓN DEL PRODUCTO</th>
+                                        <th style="width: 12%;" class="text-center">CANTIDAD</th>
+                                        <th style="width: 13%;" class="text-end">PRECIO UNIT.</th>
+                                        <th style="width: 13%;" class="text-end">SUBTOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @{ int itemNum = 1; }
+                                    @foreach (var line in receipt.Lines)
+                                    {
+                                        <tr>
+                                            <td class="text-center text-muted fw-bold">@(itemNum++)</td>
+                                            <td><span class="badge bg-light text-dark border font-monospace">#@line.ProductId</span></td>
+                                            <td class="fw-semibold text-dark">@line.ProductName</td>
+                                            <td class="text-center font-monospace fw-bold">@line.Quantity</td>
+                                            <td class="text-end font-monospace">@CurrencyFormatter.Format(line.UnitPrice)</td>
+                                            <td class="text-end font-monospace fw-bold text-dark">@CurrencyFormatter.Format(line.Subtotal)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Resumen y Totales -->
+                        <div class="row justify-content-end mt-2">
+                            <div class="col-md-5">
+                                <div class="invoice-totals-box ms-md-auto">
+                                    <div class="invoice-totals-row">
+                                        <span>Subtotal Neto:</span>
+                                        <span class="fw-bold font-monospace">@CurrencyFormatter.Format(receipt.Subtotal)</span>
+                                    </div>
+                                    <div class="invoice-totals-row">
+                                        <span>Descuento Comercial (0%):</span>
+                                        <span class="font-monospace">$0.00</span>
+                                    </div>
+                                    <div class="invoice-totals-row">
+                                        <span>IVA (15%):</span>
+                                        <span class="font-monospace">@CurrencyFormatter.Format(receipt.Tax)</span>
+                                    </div>
+                                    <div class="invoice-totals-row invoice-total-highlight">
+                                        <span>TOTAL A PAGAR:</span>
+                                        <span class="text-success font-monospace">@CurrencyFormatter.Format(receipt.Total)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pie de Factura -->
+                        <div class="invoice-legal-note">
+                            <div class="fw-bold text-dark mb-1">¡Gracias por su compra en Ventas NorthWind!</div>
+                            <div class="text-muted mt-1 font-monospace" style="font-size: 0.68rem;">
+                                CUFE: NW-@(receipt.OrderId.ToString("X8"))-@(receipt.OrderId.ToString("X8")) · Documento oficial emitido electrónicamente
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-white border-top p-3 d-flex justify-content-end gap-2 receipt-print-actions">
+                    <button type="button" class="btn btn-primary fw-bold px-4 py-2 shadow-sm" @onclick="SaveReceiptAsPdf" title="Guardar PDF de la factura">
+                        <i class="bi bi-file-earmark-pdf-fill me-2"></i>Guardar PDF
+                    </button>
+                    <button type="button" class="btn btn-secondary fw-bold px-4 py-2" @onclick="AcceptReceipt" title="Cerrar factura">
+                        <i class="bi bi-x-lg me-1"></i>Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<CustomerSearchModal @bind-IsOpen="IsCustomerModalOpen" OnCustomerSelected="OnCustomerSelectedHandler" />
+<ProductSearchModal @bind-IsOpen="IsProductModalOpen" OnProductSelected="OnProductSelectedHandler" />
+
+@code {
+    private bool IsCustomerModalOpen = false;
+    private bool IsProductModalOpen = false;
+    private string SelectedCustomerName = string.Empty;
+    private int ReplacingItemIndex = -1; // -1 means add new, >= 0 means replacing row at index
+    private int PendingRemoveIndex = -1;
+    private bool IsReceiptOpen;
+    private string selectedCustomerId = string.Empty;
+
+    private async Task SubmitOrder()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var salespersonName = user.FindFirst("FullName")?.Value;
+        if (string.IsNullOrWhiteSpace(salespersonName))
+        {
+            salespersonName = user.Identity?.Name;
+        }
+        if (string.IsNullOrWhiteSpace(salespersonName))
+        {
+            salespersonName = "Vendedor Autorizado";
+        }
+
+        await Order.Send(salespersonName);
+        IsReceiptOpen = Order.CompletedReceipt is not null;
+    }
+
+    private void AcceptReceipt()
+    {
+        IsReceiptOpen = false;
+        Order.Reset();
+        SelectedCustomerName = string.Empty;
+        selectedCustomerId = string.Empty;
+    }
+
+    private async Task SaveReceiptAsPdf()
+    {
+        if (Order.CompletedReceipt is { } receipt)
+        {
+            var fileName = $"Factura_NorthWind_Orden_{receipt.OrderId}.pdf";
+            await JSRuntime.InvokeVoidAsync("invoicePdfHelper.downloadPdf", "invoice-real-sheet", fileName);
+        }
+    }
+
+    private void ClearCustomerSelection()
+    {
+        if (Order.CustomerId == selectedCustomerId) return;
+        Order.CustomerName = string.Empty;
+        SelectedCustomerName = string.Empty;
+        selectedCustomerId = string.Empty;
+    }
+
+    private void OpenCustomerModal() => IsCustomerModalOpen = true;
+
+    private void OpenAddProductModal()
+    {
+        ReplacingItemIndex = -1;
+        IsProductModalOpen = true;
+    }
+
+    private void OpenReplaceProductModal(int index)
+    {
+        ReplacingItemIndex = index;
+        IsProductModalOpen = true;
+    }
+
+    private void OnCustomerSelectedHandler(CustomerItemViewModel customer)
+    {
+        Order.CustomerId = customer.Id;
+        Order.CustomerName = customer.Name;
+        selectedCustomerId = customer.Id;
+        SelectedCustomerName = $"{customer.Name} (ID: {customer.Id})";
+    }
+
+    private void OnProductSelectedHandler(ProductItemViewModel product)
+    {
+        // Si se está cambiando un producto de una fila existente
+        if (ReplacingItemIndex >= 0 && ReplacingItemIndex < Order.OrderDetails.Count)
+        {
+            var target = Order.OrderDetails[ReplacingItemIndex];
+            target.ProductId = product.Id;
+            target.ProductName = product.Name;
+            target.UnitPrice = product.UnitPrice;
+            ReplacingItemIndex = -1;
+            return;
+        }
+
+        // Requerimiento 3 & 11: Si el producto ya existe en la orden, se incrementa la cantidad en vez de duplicar
+        var existingDetail = Order.OrderDetails.FirstOrDefault(d => d.ProductId == product.Id);
+        if (existingDetail != null)
+        {
+            existingDetail.ProductName = product.Name;
+            existingDetail.IncrementQuantity();
+            Notifications.ShowWarning(
+                "Producto agregado nuevamente",
+                $"{product.Name} ya estaba en la orden. La cantidad ahora es {existingDetail.Quantity}.",
+                "La cantidad se actualizó en la misma fila; revisa el subtotal antes de guardar.");
+            return;
+        }
+
+        // De lo contrario, buscar una fila vacía o agregar una nueva
+        var targetDetail = Order.OrderDetails.FirstOrDefault(d => d.ProductId == 0);
+        if (targetDetail == null)
+        {
+            Order.AddNewOrderDetailItem();
+            targetDetail = Order.OrderDetails.LastOrDefault();
+        }
+
+        if (targetDetail != null)
+        {
+            targetDetail.ProductId = product.Id;
+            targetDetail.ProductName = product.Name;
+            targetDetail.UnitPrice = product.UnitPrice;
+            if (targetDetail.Quantity <= 0)
+            {
+                targetDetail.Quantity = 1;
+            }
+        }
+    }
+
+    private void RequestRemoveDetailItem(int index)
+    {
+        if (index >= 0 && index < Order.OrderDetails.Count)
+            PendingRemoveIndex = index;
+    }
+
+    private void CancelRemoveDetailItem() => PendingRemoveIndex = -1;
+
+    private void ConfirmRemoveDetailItem()
+    {
+        if (PendingRemoveIndex >= 0 && PendingRemoveIndex < Order.OrderDetails.Count)
+        {
+            Order.OrderDetails.RemoveAt(PendingRemoveIndex);
+            if (Order.OrderDetails.Count == 0)
+            {
+                Order.AddNewOrderDetailItem();
+            }
+        }
+        PendingRemoveIndex = -1;
+    }
+}

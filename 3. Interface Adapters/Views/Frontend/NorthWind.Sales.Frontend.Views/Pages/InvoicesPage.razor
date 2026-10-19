@@ -1,0 +1,424 @@
+@page "/invoices"
+@implements IDisposable
+@attribute [Authorize]
+@using NorthWind.Sales.Entities.Dtos.SearchOrders
+@using NorthWind.Sales.Frontend.BusinessObjects.Interfaces
+@using Microsoft.JSInterop
+@inject ISearchOrdersGateway OrdersGateway
+@inject IJSRuntime JSRuntime
+
+
+<PageTitle>Búsqueda y Visualización de Facturas - NorthWind</PageTitle>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">
+                <i class="bi bi-receipt-cutoff me-2"></i> Búsqueda y Visualización de Facturas
+            </h2>
+            <p class="text-muted mb-0">Consulta y visualiza las órdenes guardadas por Número de Orden o Cliente.</p>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-4">
+            <div class="row g-3">
+                <div class="col-md-9">
+                    <div class="input-group">
+                        <select class="form-select form-select-lg" style="max-width: 210px" @bind="FilterField" @bind:after="OnFilterFieldChanged" aria-label="Campo de búsqueda">
+                            <option value="OrderId">Número de orden</option>
+                            <option value="CustomerId">ID del cliente</option>
+                            <option value="CustomerName">Nombre del cliente</option>
+                        </select>
+                        <input type="text" class="form-control form-control-lg" inputmode="@(FilterField == "OrderId" ? "numeric" : null)"
+                               maxlength="@(FilterField == "OrderId" ? 10 : FilterField == "CustomerId" ? 5 : null)"
+                               placeholder="@(FilterField == "OrderId" ? "Ingresa el número de orden" : FilterField == "CustomerId" ? "Ingresa el ID del cliente" : "Ingresa el nombre del cliente")"
+                               value="@FilterText" @oninput="OnFilterInput" @onkeyup="OnKeyUp" />
+                    </div>
+                </div>
+                <div class="col-md-3 d-grid">
+                    <button class="btn btn-primary btn-lg fw-bold" @onclick="SearchImmediately">
+                        <i class="bi bi-search me-1"></i> Buscar Facturas
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-3 text-muted fs-5">Cargando facturas guardadas...</p>
+        </div>
+    }
+    else if (Orders == null || !Orders.Any())
+    {
+        <div class="card shadow-sm border-0 text-center py-5">
+            <div class="card-body">
+                <i class="bi bi-inbox text-muted display-4 mb-3 d-block"></i>
+                <h4 class="text-muted fw-bold">No se encontraron facturas</h4>
+                <p class="text-muted">Intenta realizar una nueva búsqueda o crea una orden en el Punto de Venta.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th># Orden (Factura)</th>
+                                <th>Cliente</th>
+                                <th>Fecha</th>
+                                <th>Ciudad / País</th>
+                                <th class="text-end">Total ($)</th>
+                                <th class="text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var order in PagedOrders)
+                            {
+                                <tr>
+                                    <td><span class="badge bg-primary font-monospace fs-6">#@order.Id</span></td>
+                                    <td>
+                                        <div class="fw-bold">@order.CustomerName</div>
+                                        <small class="text-muted font-monospace">ID: @order.CustomerId</small>
+                                    </td>
+                                    <td>@order.OrderDate.ToString("g")</td>
+                                    <td>@order.ShipCity, @order.ShipCountry</td>
+                                    <td class="text-end fw-bold text-success font-monospace fs-6">@CurrencyFormatter.Format(order.Total)</td>
+                                    <td class="text-center">
+                                        <button class="btn btn-outline-primary btn-sm fw-bold" @onclick="() => ViewInvoiceDetails(order.Id)">
+                                            <i class="bi bi-eye me-1"></i> Ver factura
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        @if (Orders.Any())
+        {
+            <div class="d-flex justify-content-between align-items-center p-3">
+                <small class="text-muted">Página @CurrentPage de @TotalPages · @Orders.Count() facturas</small>
+                <div class="d-flex align-items-center gap-2">
+                    <label for="invoicePageSize" class="form-label mb-0 small">Elementos por página</label>
+                    <select id="invoicePageSize" class="form-select form-select-sm" style="width: auto" @bind="PageSize" @bind:after="OnPageSizeChanged" aria-label="Elementos por página">
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                        <option value="30">30</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-outline-primary" disabled="@(CurrentPage == 1)" @onclick="() => ChangePage(-1)">Anterior</button>
+                    <button class="btn btn-outline-primary" disabled="@(CurrentPage >= TotalPages)" @onclick="() => ChangePage(1)">Siguiente</button>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@if (SelectedInvoice != null)
+{
+    <div class="modal fade show d-block invoice-print-backdrop" tabindex="-1" style="background-color: rgba(0,0,0,0.65);">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-dark text-white p-3 receipt-print-actions">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-file-earmark-text-fill fs-3 text-primary me-2"></i>
+                        <div>
+                            <h5 class="modal-title fw-bold mb-0">Detalle de Factura #@SelectedInvoice.Header.Id</h5>
+                            <small class="text-white-50">Consulta oficial de orden registrada en NorthWind</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseInvoiceModal"></button>
+                </div>
+                <div class="modal-body p-4 bg-light">
+                    <!-- HOJA DE FACTURA REAL PROFESIONAL -->
+                    <div id="invoice-saved-sheet" class="real-invoice-sheet bg-white">
+                        <!-- Encabezado Superior: Establecimiento y Caja de Factura -->
+                        <div class="row align-items-center mb-4 pb-3 border-bottom">
+                            <div class="col-sm-7 mb-3 mb-sm-0">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-2 text-primary fs-2">
+                                        <i class="bi bi-shop"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="invoice-brand-title mb-0">Ventas NorthWind</h3>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-sm-5 text-sm-end">
+                                <div class="invoice-badge-card ms-sm-auto">
+                                    <div class="invoice-badge-label">FACTURA ELECTRÓNICA DE VENTA</div>
+                                    <div class="invoice-badge-num">N° FAC-@SelectedInvoice.Header.Id.ToString("D6")</div>
+                                    <div class="small text-muted mb-1">
+                                        <strong>Fecha de Emisión:</strong> @SelectedInvoice.Header.OrderDate.ToString("dd/MM/yyyy HH:mm:ss")
+                                    </div>
+                                    <div>
+                                        <span class="badge bg-success text-white px-2 py-1 fw-bold">
+                                            <i class="bi bi-patch-check-fill me-1"></i>PAGADA
+                                        </span>
+                                        <span class="badge bg-light text-dark border ms-1">CONTADO</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cajas Informativas: Cliente y Vendedor/Transacción -->
+                        <div class="row g-3 mb-4">
+                            <!-- Datos del Cliente -->
+                            <div class="col-md-6">
+                                <div class="invoice-section-box">
+                                    <div class="invoice-section-title">
+                                        <i class="bi bi-person-badge me-1"></i> Datos del Cliente (Adquiriente)
+                                    </div>
+                                    <div class="invoice-field-row">
+                                        <span class="invoice-field-label">Cliente:</span>
+                                        <strong class="text-dark">@SelectedInvoice.Header.CustomerName</strong>
+                                    </div>
+                                    <div class="invoice-field-row">
+                                        <span class="invoice-field-label">ID / RUC / CC:</span>
+                                        <span class="badge bg-secondary font-monospace">@SelectedInvoice.Header.CustomerId</span>
+                                    </div>
+                                    <div class="invoice-field-row">
+                                        <span class="invoice-field-label">Dirección:</span>
+                                        <span>@SelectedInvoice.Header.ShipAddress</span>
+                                    </div>
+                                    <div class="invoice-field-row">
+                                        <span class="invoice-field-label">Ciudad / País:</span>
+                                        <span>@SelectedInvoice.Header.ShipCity, @SelectedInvoice.Header.ShipCountry</span>
+                                    </div>
+                                    <div class="invoice-field-row">
+                                        <span class="invoice-field-label">Cód. Postal:</span>
+                                        <span>@(string.IsNullOrWhiteSpace(SelectedInvoice.Header.ShipPostalCode) ? "N/A" : SelectedInvoice.Header.ShipPostalCode)</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Datos del Vendedor y la Venta -->
+                            <div class="col-md-6">
+                                <div class="invoice-section-box">
+                                    <div class="invoice-section-title">
+                                        <i class="bi bi-briefcase me-1"></i> Información de Venta y Emisión
+                                    </div>
+                                    <div class="invoice-field-row">
+                                        <span class="invoice-field-label">Vendedor:</span>
+                                        <strong class="text-primary fs-6">
+                                            <i class="bi bi-person-check-fill me-1"></i>@SelectedInvoice.Header.SalespersonName
+                                        </strong>
+                                    </div>
+                                    <div class="invoice-field-row">
+                                        <span class="invoice-field-label">Moneda:</span>
+                                        <span>Dólares Americanos (USD)</span>
+                                    </div>
+                                    <div class="invoice-field-row">
+                                        <span class="invoice-field-label">Estado:</span>
+                                        <span class="text-success fw-bold">Transacción Aprobada</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detalle de Productos -->
+                        <div class="table-responsive">
+                            <table class="invoice-table table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 8%;" class="text-center">#</th>
+                                        <th style="width: 14%;">CÓDIGO</th>
+                                        <th style="width: 40%;">DESCRIPCIÓN DEL PRODUCTO</th>
+                                        <th style="width: 12%;" class="text-center">CANTIDAD</th>
+                                        <th style="width: 13%;" class="text-end">PRECIO UNIT.</th>
+                                        <th style="width: 13%;" class="text-end">SUBTOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @{ int itemNum = 1; }
+                                    @foreach (var item in SelectedInvoice.Details)
+                                    {
+                                        <tr>
+                                            <td class="text-center text-muted fw-bold">@(itemNum++)</td>
+                                            <td><span class="badge bg-light text-dark border font-monospace">#@item.ProductId</span></td>
+                                            <td class="fw-semibold text-dark">@item.ProductName</td>
+                                            <td class="text-center font-monospace fw-bold">@item.Quantity</td>
+                                            <td class="text-end font-monospace">@CurrencyFormatter.Format(item.UnitPrice)</td>
+                                            <td class="text-end font-monospace fw-bold text-dark">@CurrencyFormatter.Format(item.Subtotal)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Resumen y Totales -->
+                        @{
+                            var subtotalNeto = SelectedInvoice.Details.Sum(d => d.Subtotal);
+                            var iva = subtotalNeto * 0.15m;
+                            var totalConIva = subtotalNeto + iva;
+                        }
+                        <div class="row justify-content-end mt-2">
+                            <div class="col-md-5">
+                                <div class="invoice-totals-box ms-md-auto">
+                                    <div class="invoice-totals-row">
+                                        <span>Subtotal Neto:</span>
+                                        <span class="fw-bold font-monospace">@CurrencyFormatter.Format(subtotalNeto)</span>
+                                    </div>
+                                    <div class="invoice-totals-row">
+                                        <span>Descuento Comercial (0%):</span>
+                                        <span class="font-monospace">$0.00</span>
+                                    </div>
+                                    <div class="invoice-totals-row">
+                                        <span>IVA (15%):</span>
+                                        <span class="font-monospace">@CurrencyFormatter.Format(iva)</span>
+                                    </div>
+                                    <div class="invoice-totals-row invoice-total-highlight">
+                                        <span>TOTAL A PAGAR:</span>
+                                        <span class="text-success font-monospace">@CurrencyFormatter.Format(totalConIva)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pie de Factura -->
+                        <div class="invoice-legal-note">
+                            <div class="fw-bold text-dark mb-1">¡Gracias por su compra en Ventas NorthWind!</div>
+                            <div class="text-muted mt-1 font-monospace" style="font-size: 0.68rem;">
+                                CUFE: NW-@(SelectedInvoice.Header.Id.ToString("X8"))-@(SelectedInvoice.Header.Id.ToString("X8")) · Documento oficial emitido electrónicamente
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white border-top p-3 d-flex justify-content-end gap-2 receipt-print-actions">
+                    <button type="button" class="btn btn-primary fw-bold px-4 py-2 shadow-sm" @onclick="SaveInvoiceAsPdf" title="Guardar PDF de la factura">
+                        <i class="bi bi-file-earmark-pdf-fill me-2"></i>Guardar PDF
+                    </button>
+                    <button type="button" class="btn btn-secondary fw-bold px-4 py-2" @onclick="CloseInvoiceModal" title="Cerrar">
+                        <i class="bi bi-x-lg me-1"></i>Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private string FilterText = string.Empty;
+    private string FilterField = "OrderId";
+    private readonly SearchDebouncer SearchDebouncer = new();
+    private int SearchRequestVersion;
+    private IEnumerable<OrderHeaderDto> Orders = [];
+    private List<OrderHeaderDto>? AllOrders;
+    private OrderInvoiceDto? SelectedInvoice = null;
+    private bool IsLoading = false;
+    private int PageSize = 10;
+    private int CurrentPage = 1;
+    private IEnumerable<OrderHeaderDto> PagedOrders => Orders.Skip((CurrentPage - 1) * PageSize).Take(PageSize);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(Orders.Count() / (double)PageSize));
+
+    private Task OnFilterFieldChanged()
+    {
+        FilterText = string.Empty;
+        SearchDebouncer.CancelPending();
+        return ExecuteSearch();
+    }
+
+    private Task OnFilterInput(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? string.Empty;
+        FilterText = FilterField switch
+        {
+            "OrderId" => new string(value.Where(char.IsAsciiDigit).Take(10).ToArray()),
+            "CustomerId" => new string(value.Where(char.IsAsciiLetterOrDigit).Take(5).ToArray()).ToUpperInvariant(),
+            _ => value
+        };
+        return SearchDebouncer.RunAsync(ExecuteSearch);
+    }
+
+    private Task SearchImmediately()
+    {
+        SearchDebouncer.CancelPending();
+        return ExecuteSearch();
+    }
+
+    public void Dispose() => SearchDebouncer.Dispose();
+
+    private void ChangePage(int delta) => CurrentPage = Math.Clamp(CurrentPage + delta, 1, TotalPages);
+    private void OnPageSizeChanged() => CurrentPage = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ExecuteSearch();
+    }
+
+    private Task OnKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            return SearchImmediately();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private async Task ExecuteSearch()
+    {
+        var requestVersion = ++SearchRequestVersion;
+        IsLoading = true;
+        try
+        {
+            var term = FilterText.Trim();
+            var results = AllOrders;
+            if (results == null)
+            {
+                results = (await OrdersGateway.SearchOrders(null)).ToList();
+                if (requestVersion != SearchRequestVersion) return;
+                AllOrders = results;
+            }
+
+            if (requestVersion != SearchRequestVersion) return;
+
+            Orders = string.IsNullOrEmpty(term)
+                ? results
+                : FilterField switch
+                {
+                    "OrderId" => results.Where(o => o.Id.ToString().Contains(term, StringComparison.Ordinal)),
+                    "CustomerId" => results.Where(o => o.CustomerId.Contains(term, StringComparison.OrdinalIgnoreCase)),
+                    _ => results.Where(o => o.CustomerName.Contains(term, StringComparison.OrdinalIgnoreCase))
+                };
+            CurrentPage = 1;
+        }
+        finally
+        {
+            if (requestVersion == SearchRequestVersion) IsLoading = false;
+        }
+    }
+
+    private async Task ViewInvoiceDetails(int orderId)
+    {
+        SelectedInvoice = await OrdersGateway.GetOrderById(orderId);
+    }
+
+    private void CloseInvoiceModal()
+    {
+        SelectedInvoice = null;
+    }
+
+    private async Task SaveInvoiceAsPdf()
+    {
+        if (SelectedInvoice != null)
+        {
+            var fileName = $"Factura_NorthWind_Orden_{SelectedInvoice.Header.Id}.pdf";
+            await JSRuntime.InvokeVoidAsync("invoicePdfHelper.downloadPdf", "invoice-saved-sheet", fileName);
+        }
+    }
+}

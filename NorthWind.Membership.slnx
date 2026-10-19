@@ -1,13 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
 <Solution>
-  <Folder Name="/EnterpriseBusinessRules/">
-    <Project Path="NorthWind.Result.Entities/NorthWind.Result.Entities.csproj" />
-    <Project Path="NorthWind.Membership.Entities/NorthWind.Membership.Entities.csproj" />
+  <Folder Name="/1. Enterprise Business Rules/">
+    <Project Path="1. Enterprise Business Rules/NorthWind.Membership.Entities/NorthWind.Membership.Entities.csproj" />
+    <Project Path="1. Enterprise Business Rules/NorthWind.Result.Entities/NorthWind.Result.Entities.csproj" />
   </Folder>
-  <Folder Name="/ApplicationBusinessRules/">
-    <Project Path="NorthWind.Membership.Backend.Core/NorthWind.Membership.Backend.Core.csproj" />
+  <Folder Name="/2. Application Business Rules/">
+    <Project Path="2. Application Business Rules/NorthWind.Membership.Backend.Core/NorthWind.Membership.Backend.Core.csproj" />
   </Folder>
-  <Folder Name="/FrameworksAndDrivers/">
-    <Project Path="NorthWind.Membership.Backend.AspNetIdentity/NorthWind.Membership.Backend.AspNetIdentity.csproj" />
-    <Project Path="NorthWind.Membership.Frontend.RazorViews/NorthWind.Membership.Frontend.RazorViews.csproj" />
+  <Folder Name="/3. Interface Adapters/" />
+  <Folder Name="/4. Frameworks And Drivers/" />
+  <Folder Name="/3. Interface Adapters/Views/" />
+  <Folder Name="/4. Frameworks And Drivers/Frameworks/" />
+  <Folder Name="/3. Interface Adapters/Views/RazorComponents/">
+    <Project Path="3. Interface Adapters/Views/RazorComponents/NorthWind.Membership.Frontend.RazorViews/NorthWind.Membership.Frontend.RazorViews.csproj" />
+  </Folder>
+  <Folder Name="/4. Frameworks And Drivers/Frameworks/Libraries/">
+    <Project Path="4. Frameworks And Drivers/Frameworks/Libraries/NorthWind.Membership.Backend.AspNetIdentity/NorthWind.Membership.Backend.AspNetIdentity.csproj" />
   </Folder>
 </Solution>

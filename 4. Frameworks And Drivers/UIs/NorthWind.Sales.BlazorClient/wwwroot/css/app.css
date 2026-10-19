@@ -1,0 +1,193 @@
+html, body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+h1:focus {
+    outline: none;
+}
+
+#blazor-error-ui {
+    background: lightyellow;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+#blazor-error-ui .dismiss { cursor: pointer; position: absolute; right: 0.75rem; top: 0.5rem; }
+
+.delete-action-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
+    color: #dc3545;
+    font-size: 1.2rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.receipt-totals { max-width: 20rem; }
+
+/* ==========================================================
+   ESTILOS DE FACTURA REAL PROFESIONAL (NORTHWIND TRADERS)
+   ========================================================== */
+.real-invoice-sheet {
+    background-color: #ffffff;
+    color: #1e293b;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    padding: 2rem 2.25rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    line-height: 1.4;
+}
+
+.real-invoice-sheet .invoice-brand-title {
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: #0f2b48;
+    letter-spacing: -0.5px;
+    margin-bottom: 2px;
+}
+
+.real-invoice-sheet .invoice-brand-slogan {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #0d6efd;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.4rem;
+}
+
+.real-invoice-sheet .company-info-text {
+    font-size: 0.8rem;
+    color: #475569;
+    line-height: 1.45;
+}
+
+.real-invoice-sheet .invoice-badge-card {
+    background: #f8fafc;
+    border: 2px solid #0f2b48;
+    border-radius: 8px;
+    padding: 0.75rem 1.1rem;
+    text-align: right;
+}
+
+.real-invoice-sheet .invoice-badge-label {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #0d6efd;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.real-invoice-sheet .invoice-badge-num {
+    font-size: 1.45rem;
+    font-weight: 800;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: #0f2b48;
+    margin: 2px 0;
+}
+
+.real-invoice-sheet .invoice-section-box {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.85rem 1rem;
+    height: 100%;
+}
+
+.real-invoice-sheet .invoice-section-title {
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #0f2b48;
+    letter-spacing: 0.6px;
+    margin-bottom: 0.45rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid #cbd5e1;
+}
+
+.real-invoice-sheet .invoice-field-row {
+    font-size: 0.82rem;
+    margin-bottom: 0.25rem;
+    color: #334155;
+}
+
+.real-invoice-sheet .invoice-field-label {
+    font-weight: 700;
+    color: #1e293b;
+    display: inline-block;
+    min-width: 90px;
+}
+
+.real-invoice-sheet .invoice-table {
+    width: 100%;
+    margin-top: 1rem;
+    margin-bottom: 1.25rem;
+    border-collapse: collapse;
+}
+
+.real-invoice-sheet .invoice-table thead th {
+    background-color: #0f2b48 !important;
+    color: #ffffff !important;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.6rem 0.75rem;
+    border: none;
+}
+
+.real-invoice-sheet .invoice-table tbody td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.84rem;
+    color: #1e293b;
+    vertical-align: middle;
+}
+
+.real-invoice-sheet .invoice-table tbody tr:nth-child(even) {
+    background-color: #f8fafc;
+}
+
+.real-invoice-sheet .invoice-totals-box {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.85rem 1.15rem;
+    min-width: 280px;
+    max-width: 320px;
+}
+
+.real-invoice-sheet .invoice-totals-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: #475569;
+    margin-bottom: 0.35rem;
+}
+
+.real-invoice-sheet .invoice-total-highlight {
+    border-top: 2px solid #0f2b48;
+    padding-top: 0.55rem;
+    margin-top: 0.55rem;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #0f2b48;
+}
+
+.real-invoice-sheet .invoice-legal-note {
+    border-top: 1px dashed #cbd5e1;
+    margin-top: 1.25rem;
+    padding-top: 0.75rem;
+    font-size: 0.73rem;
+    color: #64748b;
+    text-align: center;
+}
