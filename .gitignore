@@ -30,6 +30,8 @@ coverage.*
 # NuGet packages and local package feeds
 *.nupkg
 *.snupkg
+!NorthWind.Packages/*.nupkg
+!NorthWind.Packages/*.snupkg
 packages/
 
 # Logs and temporary files
