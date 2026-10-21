@@ -33,12 +33,6 @@
         });
     }
 
-    private void ResetDismissal(NotificationEntry entry)
-    {
-        entry.IsPointerOver = true;
-        entry.Dismissal?.Cancel();
-    }
-
     private void StartDismissal(NotificationEntry entry)
     {
         entry.IsPointerOver = false;
@@ -48,11 +42,17 @@
         _ = DismissAfterDelay(entry, entry.Dismissal.Token);
     }
 
+    private void ResetDismissal(NotificationEntry entry)
+    {
+        entry.IsPointerOver = true;
+        entry.Dismissal?.Cancel();
+    }
+
     private async Task DismissAfterDelay(NotificationEntry entry, CancellationToken cancellationToken)
     {
         try
         {
-            await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+            await Task.Delay(TimeSpan.FromSeconds(4), cancellationToken);
             await InvokeAsync(() =>
             {
                 if (entry.IsPointerOver) return;

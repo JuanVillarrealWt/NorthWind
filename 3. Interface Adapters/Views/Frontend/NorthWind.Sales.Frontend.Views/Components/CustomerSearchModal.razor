@@ -20,7 +20,7 @@
                             <option value="Id">ID del cliente</option>
                             <option value="Name">Nombre</option>
                         </select>
-                        <input type="text" class="form-control form-control-lg" maxlength="@(FilterField == "Id" ? 5 : null)"
+                        <input type="text" class="form-control form-control-lg" maxlength="@(FilterField == "Id" ? 5 : null)" data-trim-leading="@(FilterField == "Id" ? "true" : null)"
                                placeholder="@(FilterField == "Id" ? "Código de cliente" : "Nombre del cliente")"
                                value="@FilterText" @oninput="OnFilterInput" @onkeyup="OnKeyUp" />
                         <button class="btn btn-primary" type="button" @onclick="SearchImmediately">Buscar</button>

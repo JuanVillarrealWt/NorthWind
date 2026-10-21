@@ -18,7 +18,7 @@
                 <div class="col-md-6">
                     <label for="customerId" class="form-label fw-bold">@CreateOrderMessages.CustomerIdLabel</label>
                     <div class="input-group">
-                        <InputText class="form-control" id="customerId" maxlength="5" placeholder="@CreateOrderMessages.CustomerIdLabel" @bind-Value="Order.CustomerId" @bind-Value:after="ClearCustomerSelection" />
+                        <InputText class="form-control" id="customerId" maxlength="5" data-trim-leading="true" placeholder="@CreateOrderMessages.CustomerIdLabel" @bind-Value="Order.CustomerId" @bind-Value:after="ClearCustomerSelection" />
                         <button type="button" class="btn btn-outline-primary fw-bold" @onclick="OpenCustomerModal">
                             <i class="bi bi-search me-1"></i> Búsqueda Inteligente
                         </button>
@@ -38,12 +38,12 @@
 
                 <div class="col-md-4">
                     <label for="shipCity" class="form-label fw-bold">@CreateOrderMessages.ShipCityLabel</label>
-                    <input class="form-control" id="shipCity" placeholder="@CreateOrderMessages.ShipCityLabel" data-trim-leading="true" value="@Order.ShipCity" @oninput="args => Order.ShipCity = args.Value?.ToString() ?? string.Empty" />
+                    <input class="form-control" id="shipCity" placeholder="@CreateOrderMessages.ShipCityLabel" data-trim-leading="true" data-alpha-only="true" value="@Order.ShipCity" @oninput="args => Order.ShipCity = TextInputNormalizer.KeepLettersAndSpacesOnly(args.Value?.ToString())" />
                 </div>
 
                 <div class="col-md-4">
                     <label for="shipCountry" class="form-label fw-bold">@CreateOrderMessages.ShipCountryLabel</label>
-                    <input class="form-control" id="shipCountry" placeholder="@CreateOrderMessages.ShipCountryLabel" data-trim-leading="true" value="@Order.ShipCountry" @oninput="args => Order.ShipCountry = args.Value?.ToString() ?? string.Empty" />
+                    <input class="form-control" id="shipCountry" placeholder="@CreateOrderMessages.ShipCountryLabel" data-trim-leading="true" data-alpha-only="true" value="@Order.ShipCountry" @oninput="args => Order.ShipCountry = TextInputNormalizer.KeepLettersAndSpacesOnly(args.Value?.ToString())" />
                 </div>
 
                 <div class="col-md-4">

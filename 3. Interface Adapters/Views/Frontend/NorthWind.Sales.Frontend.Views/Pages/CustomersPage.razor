@@ -1,4 +1,6 @@
 @page "/customers"
+@using System.Globalization
+@using System.Text.RegularExpressions
 @inject AppNotificationService Notifications
 @implements IDisposable
 @attribute [Authorize]
@@ -37,7 +39,7 @@
                     <option value="Id">ID del cliente</option>
                     <option value="Name">Nombre</option>
                 </select>
-                <input type="text" class="form-control form-control-lg" maxlength="@(FilterField == "Id" ? 5 : null)"
+                <input type="text" class="form-control form-control-lg" maxlength="@(FilterField == "Id" ? 5 : null)" data-trim-leading="@(FilterField == "Id" ? "true" : null)"
                        placeholder="@(FilterField == "Id" ? "Ingresa el código de cliente" : "Ingresa el nombre")"
                        value="@FilterText" @oninput="OnFilterInput" @onkeyup="OnKeyUp" />
                 <button class="btn btn-outline-primary fw-bold" @onclick="SearchImmediately">Buscar</button>
@@ -137,15 +139,15 @@
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label fw-bold">ID del cliente (código de 5 caracteres)</label>
-                        <input type="text" class="form-control" maxlength="5" @bind="CurrentCustomer.Id" disabled="@IsEditing" placeholder="Ej.: ALFKI" />
+                        <input type="text" class="form-control" maxlength="5" data-alphanumeric-only="true" value="@CurrentCustomer.Id" @oninput="OnCustomerIdInput" disabled="@IsEditing" placeholder="Ej.: ALFKI" />
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Nombre del cliente o empresa</label>
-                        <input type="text" class="form-control" @bind="CurrentCustomer.Name" placeholder="Ej.: Alfreds Futterkiste" />
+                        <input type="text" class="form-control" maxlength="40" data-trim-leading="true" value="@CurrentCustomer.Name" @oninput="OnCustomerNameInput" placeholder="Ej.: Alfreds Futterkiste" />
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Saldo actual ($)</label>
-                        <input type="number" step="0.01" class="form-control" @bind="CurrentCustomer.CurrentBalance" />
+                        <input type="text" inputmode="decimal" class="form-control" data-decimal-only="true" value="@CustomerBalanceInput" @oninput="OnCustomerBalanceInput" />
                     </div>
                 </div>
                 <div class="modal-footer bg-light">
@@ -184,6 +186,7 @@
     private bool IsModalOpen = false;
     private bool IsEditing = false;
     private CustomerItemViewModel CurrentCustomer = new();
+    private string CustomerBalanceInput = "0";
     private string StatusMessage = string.Empty;
     private int PageSize = 10;
     private int CurrentPage = 1;
@@ -260,6 +263,7 @@
     {
         IsEditing = false;
         CurrentCustomer = new CustomerItemViewModel { Id = string.Empty, Name = string.Empty, CurrentBalance = 0 };
+        CustomerBalanceInput = "0";
         IsModalOpen = true;
     }
 
@@ -267,8 +271,19 @@
     {
         IsEditing = true;
         CurrentCustomer = new CustomerItemViewModel { Id = customer.Id, Name = customer.Name, CurrentBalance = customer.CurrentBalance };
+        CustomerBalanceInput = customer.CurrentBalance.ToString("0.##", CultureInfo.InvariantCulture);
         IsModalOpen = true;
     }
+
+    private void OnCustomerIdInput(ChangeEventArgs args) =>
+        CurrentCustomer.Id = new string((args.Value?.ToString() ?? string.Empty)
+            .Where(char.IsAsciiLetterOrDigit).Take(5).ToArray()).ToUpperInvariant();
+
+    private void OnCustomerNameInput(ChangeEventArgs args) =>
+        CurrentCustomer.Name = TextInputNormalizer.NormalizeInitialCapital(args.Value?.ToString());
+
+    private void OnCustomerBalanceInput(ChangeEventArgs args) =>
+        CustomerBalanceInput = TextInputNormalizer.NormalizeLeadingZeros(args.Value?.ToString());
 
     private void CloseModal()
     {
@@ -277,11 +292,22 @@
 
     private async Task SaveCustomer()
     {
-        if (string.IsNullOrWhiteSpace(CurrentCustomer.Id) || string.IsNullOrWhiteSpace(CurrentCustomer.Name))
+        CurrentCustomer.Name = TextInputNormalizer.NormalizeInitialCapital(CurrentCustomer.Name);
+        if (CurrentCustomer.Id.Length != 5 || string.IsNullOrWhiteSpace(CurrentCustomer.Name))
         {
-            Notifications.ShowError("Datos incompletos", "El ID y el nombre del cliente son obligatorios.", "Completa ambos campos antes de guardar.");
+            Notifications.ShowError("Datos del cliente no válidos", "El ID debe tener 5 letras o números y el nombre es obligatorio.", "Corrige esos campos antes de guardar.");
             return;
         }
+
+        if (!Regex.IsMatch(CustomerBalanceInput, @"^\d+(?:\.\d{1,2})?$")
+            || !decimal.TryParse(CustomerBalanceInput, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var balance)
+            || balance > 999999.99m)
+        {
+            Notifications.ShowError("Saldo no válido", "Usa solo números y un punto decimal, con máximo dos decimales.", "Ejemplo: 1250.50");
+            return;
+        }
+
+        CurrentCustomer.CurrentBalance = balance;
 
         try
         {
