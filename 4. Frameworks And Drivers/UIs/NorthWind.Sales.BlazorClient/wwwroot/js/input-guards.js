@@ -147,6 +147,24 @@ document.addEventListener("input", event => {
         return;
     }
 
+    if (input.dataset.numericOnly === "true" && /\D/u.test(input.value)) {
+        const cursor = input.selectionStart ?? input.value.length;
+        const removedBeforeCursor = (input.value.slice(0, cursor).match(/\D/gu) ?? []).length;
+        input.value = input.value.replace(/\D/gu, "");
+        const nextCursor = Math.max(0, cursor - removedBeforeCursor);
+        input.setSelectionRange(nextCursor, nextCursor);
+        return;
+    }
+
+    if (input.dataset.alphanumericOnly === "true" && /[^A-Za-z0-9]/u.test(input.value)) {
+        const cursor = input.selectionStart ?? input.value.length;
+        const removedBeforeCursor = (input.value.slice(0, cursor).match(/[^A-Za-z0-9]/gu) ?? []).length;
+        input.value = input.value.replace(/[^A-Za-z0-9]/gu, "");
+        const nextCursor = Math.max(0, cursor - removedBeforeCursor);
+        input.setSelectionRange(nextCursor, nextCursor);
+        return;
+    }
+
     if (shouldRestrictSpaces(input) && (/^\s+/.test(input.value) || /\s{2,}/.test(input.value))) {
         const cursor = input.selectionStart ?? input.value.length;
         const oldLen = input.value.length;

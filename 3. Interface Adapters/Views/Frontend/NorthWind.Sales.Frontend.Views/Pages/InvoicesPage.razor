@@ -30,9 +30,14 @@
                             <option value="CustomerId">ID del cliente</option>
                             <option value="CustomerName">Nombre del cliente</option>
                         </select>
-                        <input type="text" class="form-control form-control-lg" data-trim-leading="@(FilterField is "OrderId" or "CustomerId" ? "true" : null)" inputmode="@(FilterField == "OrderId" ? "numeric" : null)"
+                        <input type="text" class="form-control form-control-lg"
+                               data-trim-leading="@(FilterField is "OrderId" or "CustomerId" ? "true" : null)"
+                               data-numeric-only="@(FilterField == "OrderId" ? "true" : null)"
+                               data-alphanumeric-only="@(FilterField == "CustomerId" ? "true" : null)"
+                               data-no-spaces="@(FilterField is "OrderId" or "CustomerId" ? "true" : null)"
+                               inputmode="@(FilterField == "OrderId" ? "numeric" : null)"
                                maxlength="@(FilterField == "OrderId" ? 10 : FilterField == "CustomerId" ? 5 : null)"
-                               placeholder="@(FilterField == "OrderId" ? "Ingresa el número de orden" : FilterField == "CustomerId" ? "Ingresa el ID del cliente" : "Ingresa el nombre del cliente")"
+                               placeholder="@(FilterField == "OrderId" ? "Ingresa el número de orden (solo números)" : FilterField == "CustomerId" ? "Ingresa el ID del cliente" : "Ingresa el nombre del cliente")"
                                value="@FilterText" @oninput="OnFilterInput" @onkeyup="OnKeyUp" />
                     </div>
                 </div>

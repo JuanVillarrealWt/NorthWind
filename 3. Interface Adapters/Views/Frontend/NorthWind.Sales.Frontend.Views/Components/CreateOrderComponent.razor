@@ -18,7 +18,7 @@
                 <div class="col-md-6">
                     <label for="customerId" class="form-label fw-bold">@CreateOrderMessages.CustomerIdLabel</label>
                     <div class="input-group">
-                        <InputText class="form-control" id="customerId" maxlength="5" data-trim-leading="true" placeholder="@CreateOrderMessages.CustomerIdLabel" @bind-Value="Order.CustomerId" @bind-Value:after="ClearCustomerSelection" />
+                        <InputText class="form-control" id="customerId" maxlength="5" data-alphanumeric-only="true" data-no-spaces="true" data-trim-leading="true" placeholder="@CreateOrderMessages.CustomerIdLabel" @bind-Value="Order.CustomerId" @bind-Value:after="ClearCustomerSelection" />
                         <button type="button" class="btn btn-outline-primary fw-bold" @onclick="OpenCustomerModal">
                             <i class="bi bi-search me-1"></i> Búsqueda Inteligente
                         </button>

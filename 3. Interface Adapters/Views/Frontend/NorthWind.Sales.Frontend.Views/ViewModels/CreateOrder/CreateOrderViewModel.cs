@@ -10,7 +10,12 @@ public class CreateOrderViewModel(
 {
     public ModelValidator<CreateOrderViewModel> ModelValidatorComponentReference { get; set; } = default!;
     public IModelValidatorHub<CreateOrderViewModel> Validator => validator;
-    public string CustomerId { get; set; } = string.Empty;
+    private string customerId = string.Empty;
+    public string CustomerId
+    {
+        get => customerId;
+        set => customerId = new string((value ?? string.Empty).Where(char.IsAsciiLetterOrDigit).Take(5).ToArray()).ToUpperInvariant();
+    }
     public string CustomerName { get; set; } = string.Empty;
     private string shipAddress = string.Empty;
     private string shipCity = string.Empty;
