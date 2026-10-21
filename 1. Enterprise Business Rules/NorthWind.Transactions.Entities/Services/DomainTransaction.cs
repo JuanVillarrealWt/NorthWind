@@ -5,27 +5,35 @@ namespace NorthWind.Transactions.Entities.Services;
 internal sealed class DomainTransaction : IDomainTransaction, IDisposable
 {
     private TransactionScope? transactionScope;
+    private bool isActive;
 
     public void BeginTransaction()
     {
-        if (transactionScope is not null)
+        if (isActive || transactionScope is not null)
             throw new InvalidOperationException("A domain transaction is already active.");
-        if (!OperatingSystem.IsWindows())
-            throw new PlatformNotSupportedException("Distributed domain transactions require Windows.");
 
-        TransactionManager.ImplicitDistributedTransactions = true;
-        transactionScope = new TransactionScope(
-            TransactionScopeOption.Required,
-            new TransactionOptions { IsolationLevel = System.Transactions.IsolationLevel.ReadCommitted },
-            TransactionScopeAsyncFlowOption.Enabled);
+        isActive = true;
+
+        if (OperatingSystem.IsWindows())
+        {
+            TransactionManager.ImplicitDistributedTransactions = true;
+            transactionScope = new TransactionScope(
+                TransactionScopeOption.Required,
+                new TransactionOptions { IsolationLevel = System.Transactions.IsolationLevel.ReadCommitted },
+                TransactionScopeAsyncFlowOption.Enabled);
+        }
     }
 
     public void CommitTransaction()
     {
-        if (transactionScope is null)
+        if (!isActive)
             throw new InvalidOperationException("No domain transaction is active.");
 
-        transactionScope.Complete();
+        if (OperatingSystem.IsWindows())
+        {
+            transactionScope?.Complete();
+        }
+
         Dispose();
     }
 
@@ -35,5 +43,6 @@ internal sealed class DomainTransaction : IDomainTransaction, IDisposable
     {
         transactionScope?.Dispose();
         transactionScope = null;
+        isActive = false;
     }
 }
