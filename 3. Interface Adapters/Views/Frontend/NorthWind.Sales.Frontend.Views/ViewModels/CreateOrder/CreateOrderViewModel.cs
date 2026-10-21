@@ -140,11 +140,11 @@ public class CreateOrderViewModel(
 
     public static explicit operator CreateOrderDto(CreateOrderViewModel model) =>
         new(
-            model.CustomerId,
-            model.ShipAddress,
-            model.ShipCity,
-            model.ShipCountry,
-            model.ShipPostalCode,
+            model.CustomerId.Trim(),
+            TextInputNormalizer.CleanBeforeSave(model.ShipAddress),
+            TextInputNormalizer.CleanBeforeSave(model.ShipCity),
+            TextInputNormalizer.CleanBeforeSave(model.ShipCountry),
+            model.ShipPostalCode.Trim(),
             model.OrderDetails.Select(detail => new CreateOrderDetailDto(
                 detail.ProductId,
                 detail.UnitPrice,

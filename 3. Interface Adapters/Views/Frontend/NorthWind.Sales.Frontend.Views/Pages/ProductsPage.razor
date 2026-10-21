@@ -305,7 +305,7 @@
 
     private async Task SaveProduct()
     {
-        CurrentProduct.Name = TextInputNormalizer.NormalizeInitialCapital(CurrentProduct.Name);
+        CurrentProduct.Name = TextInputNormalizer.CleanBeforeSave(CurrentProduct.Name);
         if (string.IsNullOrWhiteSpace(CurrentProduct.Name))
         {
             Notifications.ShowError("Datos del producto no válidos", "El nombre del producto es obligatorio.", "Escribe un nombre antes de guardar.");

@@ -1,9 +1,21 @@
+using System.Text.RegularExpressions;
+
 namespace NorthWind.RazorComponents.Formatting;
 
 public static class TextInputNormalizer
 {
-    public static string KeepLettersAndSpacesOnly(string? value) =>
-        new((value ?? string.Empty).Where(character => char.IsLetter(character) || character == ' ').ToArray());
+    public static string CollapseConsecutiveSpaces(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+        return Regex.Replace(value, @"\s{2,}", " ");
+    }
+
+    public static string KeepLettersAndSpacesOnly(string? value)
+    {
+        var raw = value ?? string.Empty;
+        var filtered = new string(raw.Where(character => char.IsLetter(character) || character == ' ').ToArray());
+        return CollapseConsecutiveSpaces(filtered.TrimStart());
+    }
 
     public static string KeepDigitsOnly(string? value) =>
         new((value ?? string.Empty).Where(char.IsAsciiDigit).ToArray());
@@ -31,7 +43,7 @@ public static class TextInputNormalizer
 
     public static string NormalizeInitialCapital(string? value)
     {
-        var normalized = (value ?? string.Empty).TrimStart();
+        var normalized = CollapseConsecutiveSpaces((value ?? string.Empty).TrimStart());
         var firstLetterIndex = 0;
         while (firstLetterIndex < normalized.Length && !char.IsLetter(normalized[firstLetterIndex]))
         {
@@ -46,5 +58,11 @@ public static class TextInputNormalizer
         var characters = normalized.ToCharArray();
         characters[firstLetterIndex] = char.ToUpperInvariant(characters[firstLetterIndex]);
         return new string(characters);
+    }
+
+    public static string CleanBeforeSave(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        return CollapseConsecutiveSpaces(value.Trim());
     }
 }

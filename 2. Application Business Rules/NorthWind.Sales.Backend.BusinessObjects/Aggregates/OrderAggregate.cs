@@ -1,4 +1,4 @@
-﻿namespace NorthWind.Sales.Backend.BusinessObjects.Aggregates;
+namespace NorthWind.Sales.Backend.BusinessObjects.Aggregates;
 
 public class OrderAggregate : Order
 {
@@ -26,11 +26,11 @@ public class OrderAggregate : Order
     {
         OrderAggregate orderAggregate = new OrderAggregate
         {
-            CustomerId = orderDto.CustomerId,
-            ShipAddress = orderDto.ShipAddress,
-            ShipCity = orderDto.ShipCity,
-            ShipCountry = orderDto.ShipCountry,
-            ShipPostalCode = orderDto.ShipPostalCode
+            CustomerId = orderDto.CustomerId?.Trim() ?? string.Empty,
+            ShipAddress = System.Text.RegularExpressions.Regex.Replace(orderDto.ShipAddress?.Trim() ?? string.Empty, @"\s{2,}", " "),
+            ShipCity = System.Text.RegularExpressions.Regex.Replace(orderDto.ShipCity?.Trim() ?? string.Empty, @"\s{2,}", " "),
+            ShipCountry = System.Text.RegularExpressions.Regex.Replace(orderDto.ShipCountry?.Trim() ?? string.Empty, @"\s{2,}", " "),
+            ShipPostalCode = orderDto.ShipPostalCode?.Trim() ?? string.Empty
         };
 
         foreach (var item in orderDto.OrderDetails)

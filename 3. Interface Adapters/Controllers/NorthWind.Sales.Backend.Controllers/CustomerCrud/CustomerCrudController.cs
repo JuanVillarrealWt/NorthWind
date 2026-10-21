@@ -19,6 +19,8 @@ public static class CustomerCrudController
         CustomerDto dto,
         ICommandsRepository repository)
     {
+        dto.Id = dto.Id?.Trim() ?? string.Empty;
+        dto.Name = System.Text.RegularExpressions.Regex.Replace(dto.Name?.Trim() ?? string.Empty, @"\s{2,}", " ");
         await repository.CreateCustomer(dto);
         await repository.SaveChanges();
         return Results.Ok();
@@ -28,6 +30,8 @@ public static class CustomerCrudController
         CustomerDto dto,
         ICommandsRepository repository)
     {
+        dto.Id = dto.Id?.Trim() ?? string.Empty;
+        dto.Name = System.Text.RegularExpressions.Regex.Replace(dto.Name?.Trim() ?? string.Empty, @"\s{2,}", " ");
         await repository.UpdateCustomer(dto);
         await repository.SaveChanges();
         return Results.Ok();

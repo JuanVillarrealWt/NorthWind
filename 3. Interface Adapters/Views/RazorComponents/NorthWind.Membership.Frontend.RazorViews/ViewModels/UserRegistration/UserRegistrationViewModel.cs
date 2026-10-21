@@ -53,5 +53,9 @@ public sealed class UserRegistrationViewModel(
     }
 
     public static explicit operator UserRegistrationDto(UserRegistrationViewModel model) =>
-        new(model.Email, model.Password, model.FirstName, model.LastName);
+        new(
+            model.Email.Trim(),
+            model.Password,
+            TextInputNormalizer.CleanBeforeSave(model.FirstName),
+            TextInputNormalizer.CleanBeforeSave(model.LastName));
 }

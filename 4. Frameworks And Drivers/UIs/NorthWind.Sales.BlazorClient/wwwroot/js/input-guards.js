@@ -23,6 +23,12 @@ function applyMaxLengthToTree(root) {
     root.querySelectorAll?.("input, textarea").forEach(applyDefaultMaxLength);
 }
 
+function shouldRestrictSpaces(input) {
+    if (!isTextualInput(input)) return false;
+    if (input.type === "password" || input.id === "password" || input.id === "passwordConfirmation") return false;
+    return true;
+}
+
 applyMaxLengthToTree(document);
 new MutationObserver(records => {
     for (const record of records) {
@@ -61,6 +67,14 @@ document.addEventListener("beforeinput", event => {
     if (nextValue.length > effectiveMaxLength) {
         event.preventDefault();
         return;
+    }
+
+    // Restricción de espacios dobles consecutivos y espacios al inicio (excepto contraseñas)
+    if (shouldRestrictSpaces(input) && isInsertion) {
+        if (/^\s/.test(nextValue) || /\s{2,}/.test(nextValue)) {
+            event.preventDefault();
+            return;
+        }
     }
 
     if (input.dataset.alphaOnly === "true" && isInsertion && !/^[\p{L} ]*$/u.test(insertedText)) {
@@ -110,12 +124,11 @@ document.addEventListener("beforeinput", event => {
     }
 
     if (input.dataset.trimLeading === "true" && event.inputType.startsWith("insert")) {
-        const insertedText = event.data ?? event.dataTransfer?.getData("text/plain") ?? "";
-        const selectionStart = input.selectionStart ?? 0;
-        const selectionEnd = input.selectionEnd ?? selectionStart;
-        const textBeforeCursor = input.value.slice(0, selectionStart);
+        const inserted = event.data ?? event.dataTransfer?.getData("text/plain") ?? "";
+        const selStart = input.selectionStart ?? 0;
+        const textBefore = input.value.slice(0, selStart);
 
-        if (textBeforeCursor.trim().length === 0 && /^\s/.test(insertedText)) {
+        if (textBefore.trim().length === 0 && /^\s/.test(inserted)) {
             event.preventDefault();
         }
     }
@@ -123,11 +136,48 @@ document.addEventListener("beforeinput", event => {
 
 document.addEventListener("input", event => {
     const input = event.target;
-    if (!(input instanceof HTMLInputElement) || input.dataset.noSpaces !== "true" || !/\s/u.test(input.value)) return;
+    if (!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) return;
 
-    const cursor = input.selectionStart ?? input.value.length;
-    const removedBeforeCursor = (input.value.slice(0, cursor).match(/\s/gu) ?? []).length;
-    input.value = input.value.replace(/\s/gu, "");
-    const nextCursor = Math.max(0, cursor - removedBeforeCursor);
-    input.setSelectionRange(nextCursor, nextCursor);
+    if (input.dataset.noSpaces === "true" && /\s/u.test(input.value)) {
+        const cursor = input.selectionStart ?? input.value.length;
+        const removedBeforeCursor = (input.value.slice(0, cursor).match(/\s/gu) ?? []).length;
+        input.value = input.value.replace(/\s/gu, "");
+        const nextCursor = Math.max(0, cursor - removedBeforeCursor);
+        input.setSelectionRange(nextCursor, nextCursor);
+        return;
+    }
+
+    if (shouldRestrictSpaces(input) && (/^\s+/.test(input.value) || /\s{2,}/.test(input.value))) {
+        const cursor = input.selectionStart ?? input.value.length;
+        const oldLen = input.value.length;
+        input.value = input.value.replace(/^\s+/g, "").replace(/\s{2,}/g, " ");
+        const newLen = input.value.length;
+        const nextCursor = Math.max(0, cursor - (oldLen - newLen));
+        input.setSelectionRange(nextCursor, nextCursor);
+    }
+}, true);
+
+function trimTrailingSpaceOnInput(input) {
+    if (!shouldRestrictSpaces(input)) return;
+    if (/\s+$/.test(input.value)) {
+        input.value = input.value.trimEnd();
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+}
+
+document.addEventListener("focusout", event => {
+    const input = event.target;
+    if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+        trimTrailingSpaceOnInput(input);
+    }
+}, true);
+
+document.addEventListener("click", event => {
+    const btn = event.target.closest("button[type='submit'], button.btn-primary, button.btn-success");
+    if (btn) {
+        document.querySelectorAll("input, textarea").forEach(input => {
+            trimTrailingSpaceOnInput(input);
+        });
+    }
 }, true);

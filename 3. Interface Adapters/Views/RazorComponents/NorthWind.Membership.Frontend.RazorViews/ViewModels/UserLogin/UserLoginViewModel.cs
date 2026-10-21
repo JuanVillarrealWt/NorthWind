@@ -38,5 +38,5 @@ public sealed class UserLoginViewModel(
     }
 
     public static explicit operator UserCredentialsDto(UserLoginViewModel model) =>
-        new(model.Email, model.Password);
+        new(model.Email.Trim(), model.Password);
 }

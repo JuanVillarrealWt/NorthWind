@@ -19,6 +19,7 @@ public static class ProductCrudController
         ProductDto dto,
         ICommandsRepository repository)
     {
+        dto.Name = System.Text.RegularExpressions.Regex.Replace(dto.Name?.Trim() ?? string.Empty, @"\s{2,}", " ");
         await repository.CreateProduct(dto);
         await repository.SaveChanges();
         return Results.Ok();
@@ -28,6 +29,7 @@ public static class ProductCrudController
         ProductDto dto,
         ICommandsRepository repository)
     {
+        dto.Name = System.Text.RegularExpressions.Regex.Replace(dto.Name?.Trim() ?? string.Empty, @"\s{2,}", " ");
         await repository.UpdateProduct(dto);
         await repository.SaveChanges();
         return Results.Ok();

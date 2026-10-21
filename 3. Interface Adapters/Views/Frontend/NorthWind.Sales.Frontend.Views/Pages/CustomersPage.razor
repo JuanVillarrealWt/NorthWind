@@ -292,7 +292,8 @@
 
     private async Task SaveCustomer()
     {
-        CurrentCustomer.Name = TextInputNormalizer.NormalizeInitialCapital(CurrentCustomer.Name);
+        CurrentCustomer.Id = CurrentCustomer.Id?.Trim() ?? string.Empty;
+        CurrentCustomer.Name = TextInputNormalizer.CleanBeforeSave(CurrentCustomer.Name);
         if (CurrentCustomer.Id.Length != 5 || string.IsNullOrWhiteSpace(CurrentCustomer.Name))
         {
             Notifications.ShowError("Datos del cliente no válidos", "El ID debe tener 5 letras o números y el nombre es obligatorio.", "Corrige esos campos antes de guardar.");
