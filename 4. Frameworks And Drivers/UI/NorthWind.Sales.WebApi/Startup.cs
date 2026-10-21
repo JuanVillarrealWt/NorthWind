@@ -38,11 +38,8 @@ internal static class Startup
     public static WebApplication ConfigureWebApplication(this WebApplication app)
     {
         app.UseExceptionHandler(_ => { });
-        if (app.Environment.IsDevelopment())
-        {
-            app.UseSwagger();
-            app.UseSwaggerUI();
-        }
+        app.UseSwagger();
+        app.UseSwaggerUI();
 
         app.UseCors();
         app.UseAuthentication();
