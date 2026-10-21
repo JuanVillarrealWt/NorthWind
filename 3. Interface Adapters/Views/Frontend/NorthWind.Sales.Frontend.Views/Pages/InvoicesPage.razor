@@ -23,7 +23,10 @@
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body p-4">
             <div class="row g-3">
-                <div class="col-md-9">
+                <div class="col-lg-8 col-md-12">
+                    <label class="form-label fw-bold text-secondary mb-1">
+                        <i class="bi bi-search me-1"></i> Buscar por dato específico
+                    </label>
                     <div class="input-group">
                         <select class="form-select form-select-lg" style="max-width: 210px" @bind="FilterField" @bind:after="OnFilterFieldChanged" aria-label="Campo de búsqueda">
                             <option value="OrderId">Número de orden</option>
@@ -39,14 +42,54 @@
                                maxlength="@(FilterField == "OrderId" ? 10 : FilterField == "CustomerId" ? 5 : null)"
                                placeholder="@(FilterField == "OrderId" ? "Ingresa el número de orden (solo números)" : FilterField == "CustomerId" ? "Ingresa el ID del cliente" : "Ingresa el nombre del cliente")"
                                value="@FilterText" @oninput="OnFilterInput" @onkeyup="OnKeyUp" />
+                        @if (!string.IsNullOrEmpty(FilterText))
+                        {
+                            <button class="btn btn-outline-secondary" type="button" @onclick="ClearFilterText" title="Limpiar texto">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        }
                     </div>
                 </div>
-                <div class="col-md-3 d-grid">
-                    <button class="btn btn-primary btn-lg fw-bold" @onclick="SearchImmediately">
+                <div class="col-lg-4 col-md-12 d-flex align-items-end">
+                    <button class="btn btn-primary btn-lg fw-bold w-100" @onclick="SearchImmediately">
                         <i class="bi bi-search me-1"></i> Buscar Facturas
                     </button>
                 </div>
             </div>
+
+            <!-- Filtro de Rango de Fechas (Desde / Hasta) -->
+            <hr class="my-3 text-muted" />
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4 col-sm-6">
+                    <label class="form-label fw-bold text-secondary mb-1">
+                        <i class="bi bi-calendar-event me-1"></i> Fecha Desde
+                    </label>
+                    <input type="date" class="form-control form-control-lg" @bind="StartDate" @bind:after="OnDateChanged" />
+                </div>
+                <div class="col-md-4 col-sm-6">
+                    <label class="form-label fw-bold text-secondary mb-1">
+                        <i class="bi bi-calendar-event-fill me-1"></i> Fecha Hasta
+                    </label>
+                    <input type="date" class="form-control form-control-lg" @bind="EndDate" @bind:after="OnDateChanged" />
+                </div>
+                <div class="col-md-4 col-sm-12 d-flex gap-2">
+                    <button class="btn btn-outline-secondary btn-lg w-100 fw-semibold" @onclick="ClearDates" disabled="@(!StartDate.HasValue && !EndDate.HasValue)">
+                        <i class="bi bi-calendar-x me-1"></i> Limpiar Fechas
+                    </button>
+                    <button class="btn btn-outline-danger btn-lg w-100 fw-semibold" @onclick="ResetAllFilters" disabled="@(string.IsNullOrEmpty(FilterText) && !StartDate.HasValue && !EndDate.HasValue)">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Restablecer
+                    </button>
+                </div>
+            </div>
+            @if (StartDate.HasValue || EndDate.HasValue)
+            {
+                <div class="mt-2 text-primary small fw-semibold">
+                    <i class="bi bi-funnel-fill me-1"></i> Filtrando facturas:
+                    @(StartDate.HasValue ? $" Desde {StartDate.Value:dd/MM/yyyy}" : "")
+                    @(StartDate.HasValue && EndDate.HasValue ? " — " : "")
+                    @(EndDate.HasValue ? $" Hasta {EndDate.Value:dd/MM/yyyy}" : "")
+                </div>
+            }
         </div>
     </div>
 
@@ -319,6 +362,8 @@
 @code {
     private string FilterText = string.Empty;
     private string FilterField = "OrderId";
+    private DateTime? StartDate;
+    private DateTime? EndDate;
     private readonly SearchDebouncer SearchDebouncer = new();
     private int SearchRequestVersion;
     private IEnumerable<OrderHeaderDto> Orders = [];
@@ -347,6 +392,36 @@
             _ => value
         };
         return SearchDebouncer.RunAsync(ExecuteSearch);
+    }
+
+    private Task OnDateChanged()
+    {
+        SearchDebouncer.CancelPending();
+        return ExecuteSearch();
+    }
+
+    private Task ClearDates()
+    {
+        StartDate = null;
+        EndDate = null;
+        SearchDebouncer.CancelPending();
+        return ExecuteSearch();
+    }
+
+    private Task ClearFilterText()
+    {
+        FilterText = string.Empty;
+        SearchDebouncer.CancelPending();
+        return ExecuteSearch();
+    }
+
+    private Task ResetAllFilters()
+    {
+        FilterText = string.Empty;
+        StartDate = null;
+        EndDate = null;
+        SearchDebouncer.CancelPending();
+        return ExecuteSearch();
     }
 
     private Task SearchImmediately()
@@ -392,14 +467,29 @@
 
             if (requestVersion != SearchRequestVersion) return;
 
-            Orders = string.IsNullOrEmpty(term)
-                ? results
-                : FilterField switch
+            var filtered = results.AsEnumerable();
+
+            if (!string.IsNullOrEmpty(term))
+            {
+                filtered = FilterField switch
                 {
-                    "OrderId" => results.Where(o => o.Id.ToString().Contains(term, StringComparison.Ordinal)),
-                    "CustomerId" => results.Where(o => o.CustomerId.Contains(term, StringComparison.OrdinalIgnoreCase)),
-                    _ => results.Where(o => o.CustomerName.Contains(term, StringComparison.OrdinalIgnoreCase))
+                    "OrderId" => filtered.Where(o => o.Id.ToString().Contains(term, StringComparison.Ordinal)),
+                    "CustomerId" => filtered.Where(o => o.CustomerId.Contains(term, StringComparison.OrdinalIgnoreCase)),
+                    _ => filtered.Where(o => o.CustomerName.Contains(term, StringComparison.OrdinalIgnoreCase))
                 };
+            }
+
+            if (StartDate.HasValue)
+            {
+                filtered = filtered.Where(o => o.OrderDate.Date >= StartDate.Value.Date);
+            }
+
+            if (EndDate.HasValue)
+            {
+                filtered = filtered.Where(o => o.OrderDate.Date <= EndDate.Value.Date);
+            }
+
+            Orders = filtered.ToList();
             CurrentPage = 1;
         }
         finally
